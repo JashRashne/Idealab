@@ -18,7 +18,6 @@ interface Props {
   connectionStatus: "connecting" | "connected" | "disconnected";
   sessionId: string;
   sendMessage: (message: WSMessage) => void;
-  ideaTree?: unknown;
   isOwner?: boolean;
   currentUserId?: string;
   currentUsername?: string;
@@ -75,7 +74,7 @@ export const WorkspaceLayout = ({
   connectionStatus,
   sessionId,
   sendMessage,
-  isOwner = false,
+  isOwner = true,
   currentUserId = "current_user",
   currentUsername = "You",
 }: Props) => {
@@ -83,12 +82,17 @@ export const WorkspaceLayout = ({
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [viewingPad,     setViewingPad]     = useState<{ userId: string; username: string } | null>(null);
 
-  // ── Real shortlisted ideas from store (falls back to static data automatically) ──
   const ideaTree = useIdeaStore((s) => s.ideaTree);
 
-  const shortlistedIdeas = useMemo(() =>
+  // Pass BOTH shortlisted + merged ideas to FinalDocument.
+  // - shortlisted → selectable in graph, not yet in doc
+  // - merged      → locked/greyed in graph, already in doc
+  const finalDocIdeas = useMemo(() =>
     flattenTree(ideaTree)
-      .filter((idea) => idea.session_id === sessionId && idea.status === "shortlisted")
+      .filter((idea) =>
+        idea.session_id === sessionId &&
+        (idea.status === "shortlisted" || idea.status === "merged")
+      )
       .map((idea) => ({
         id:          idea.id,
         title:       idea.title,
@@ -98,13 +102,19 @@ export const WorkspaceLayout = ({
         author:      idea.created_by,
         tags:        idea.tags,
         createdAt:   idea.created_at,
+        status:      idea.status as "shortlisted" | "merged",
       })),
     [ideaTree, sessionId]
   );
 
+  // Badge count = only shortlisted (not yet merged)
+  const shortlistedCount = useMemo(
+    () => finalDocIdeas.filter(i => i.status === "shortlisted").length,
+    [finalDocIdeas]
+  );
+
   const getMockPadContent = (userId: string, username: string) => ({
-    userId,
-    username,
+    userId, username,
     content: `<h2>Initial Thoughts</h2><p>Some early brainstorm notes from ${username}.</p>`,
     lastUpdated: new Date(),
   });
@@ -119,7 +129,7 @@ export const WorkspaceLayout = ({
 
       <div className="ws-fadein flex flex-col" style={{ height: "100vh", background: "#f5f5f0", overflow: "hidden" }}>
 
-        {/* TOP BAR */}
+        {/* ══ TOP BAR ══ */}
         <header className="flex items-center justify-between flex-shrink-0"
           style={{ padding: "0 24px", height: 56, borderBottom: "1.5px solid #13131A", background: "#f5f5f0", gap: 16 }}>
           <div className="flex items-center" style={{ gap: 0, minWidth: 0 }}>
@@ -160,7 +170,7 @@ export const WorkspaceLayout = ({
           </div>
         </header>
 
-        {/* TAB BAR */}
+        {/* ══ TAB BAR ══ */}
         <div className="flex items-center flex-shrink-0"
           style={{ borderBottom: "1.5px solid #13131A", background: "#f5f5f0", padding: "0 24px" }}>
           {TABS.map((tab) => {
@@ -177,17 +187,20 @@ export const WorkspaceLayout = ({
                 }}>
                 <span style={{ fontSize: 14 }}>{tab.icon}</span>
                 {tab.label}
-                {/* Live count badge on Final Document tab */}
-                {tab.id === "final" && shortlistedIdeas.length > 0 && (
+
+                {/* Badge: shortlisted ideas waiting to be merged */}
+                {tab.id === "final" && shortlistedCount > 0 && (
                   <span style={{
                     fontSize: 9, padding: "1px 6px", borderRadius: 999,
                     background: "rgba(39,201,63,0.12)", color: "#27c93f",
                     border: "1px solid rgba(39,201,63,0.3)", letterSpacing: "0.1em",
                   }}>
-                    {shortlistedIdeas.length}
+                    {shortlistedCount}
                   </span>
                 )}
-                {tab.id === "final" && isOwner && shortlistedIdeas.length === 0 && (
+
+                {/* Owner badge when no shortlisted ideas yet */}
+                {tab.id === "final" && isOwner && shortlistedCount === 0 && (
                   <span style={{
                     fontSize: 9, padding: "1px 6px", borderRadius: 999,
                     background: "rgba(58,91,255,0.1)", color: "#3a5bff",
@@ -201,9 +214,10 @@ export const WorkspaceLayout = ({
           })}
         </div>
 
-        {/* TAB CONTENT */}
+        {/* ══ TAB CONTENT ══ */}
         <div className="flex-1 overflow-hidden">
 
+          {/* WORKSPACE */}
           {activeTab === "workspace" && (
             <div className="tab-panel flex h-full overflow-hidden">
               <div className="flex flex-col overflow-hidden transition-all duration-300"
@@ -255,6 +269,7 @@ export const WorkspaceLayout = ({
             </div>
           )}
 
+          {/* MY BRAINSTORM PAD */}
           {activeTab === "pad" && (
             <div className="tab-panel h-full overflow-hidden">
               <BrainstormPad
@@ -271,11 +286,12 @@ export const WorkspaceLayout = ({
             </div>
           )}
 
+          {/* FINAL DOCUMENT */}
           {activeTab === "final" && (
             <div className="tab-panel h-full overflow-hidden">
               <FinalDocument
                 sessionTitle={sessionTitle}
-                shortlistedIdeas={shortlistedIdeas}
+                ideas={finalDocIdeas}
                 isOwner={isOwner}
                 currentUserId={currentUserId}
               />
@@ -283,7 +299,7 @@ export const WorkspaceLayout = ({
           )}
         </div>
 
-        {/* BOTTOM STATUS BAR */}
+        {/* ══ BOTTOM STATUS BAR ══ */}
         <div className="flex items-center justify-between flex-shrink-0"
           style={{ padding: "0 24px", height: 28, borderTop: "1.5px solid #13131A", background: "#0a0a0a" }}>
           <div className="flex items-center" style={{ gap: 16 }}>
