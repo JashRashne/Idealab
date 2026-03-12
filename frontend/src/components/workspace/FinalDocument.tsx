@@ -500,19 +500,23 @@ export const FinalDocument = ({ sessionTitle, ideas, isOwner, currentUserId }: P
   const [merging,      setMerging]      = useState(false);
   const [justMerged,   setJustMerged]   = useState<Set<string>>(new Set());
 
+  const seededIdsRef = useRef<Set<string>>(new Set());
   // Split incoming ideas by status
   const shortlistedIdeas = useMemo(() => ideas.filter(i => i.status !== "merged"), [ideas]);
   const alreadyMerged    = useMemo(() => ideas.filter(i => i.status === "merged"),  [ideas]);
 
   // Seed the doc panel with ideas already merged (e.g. after remount / page refresh)
-  useEffect(() => {
+   useEffect(() => {
     if (alreadyMerged.length === 0) return;
     setMergedIdeas(prev => {
       const existingIds = new Set(prev.map(m => m.id));
       const newOnes = alreadyMerged
-        .filter(i => !existingIds.has(i.id))
+        .filter(i => !existingIds.has(i.id) && !seededIdsRef.current.has(i.id))
         .map(i => ({ ...i, mergedAt: new Date(), ownerNote: "" }));
-      return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
+      if (newOnes.length === 0) return prev;
+      // Mark these as seeded so future prop updates don't re-add them
+      newOnes.forEach(i => seededIdsRef.current.add(i.id));
+      return [...prev, ...newOnes];
     });
   }, [alreadyMerged]);
 
