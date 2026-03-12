@@ -1,0 +1,52 @@
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+
+# MyPy / type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Logs
+*.log
+logs/
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# MongoDB local data
+data/db/
