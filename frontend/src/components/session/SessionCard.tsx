@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 
 import type { Session } from "../../types";
-import { Badge } from "../shared/Badge";
 
 interface Props {
   session: Session;

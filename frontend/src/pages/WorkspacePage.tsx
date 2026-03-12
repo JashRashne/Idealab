@@ -1,4 +1,4 @@
-import { Navigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { WorkspaceLayout } from "../components/workspace/WorkspaceLayout";
 import { useIdeas } from "../hooks/useIdeas";
@@ -23,6 +23,7 @@ export const WorkspacePage = () => {
     <WorkspaceLayout
       sessionId={sessionId}
       sessionTitle={session.title}
+      sessionStatus={session.status}
       participants={participants}
       onlineParticipantIds={onlineParticipantIds}
       connectionStatus={connectionStatus}

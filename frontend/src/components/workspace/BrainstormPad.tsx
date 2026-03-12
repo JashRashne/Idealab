@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
 import api from "../../services/api";
+import { useSessionStore } from "../../store/sessionStore";
 import type { WSMessage } from "../../types";
 
 interface Props {
@@ -41,6 +42,8 @@ export const BrainstormPad = ({
   sessionId,
   sendMessage,
 }: Props) => {
+  const currentSession = useSessionStore((s) => s.currentSession);
+  const isReadOnly = currentSession?.status === "closed";
   const editorRef      = useRef<HTMLDivElement>(null);
   const saveTimerRef   = useRef<number | null>(null);
   const cursorTimerRef = useRef<number | null>(null);
@@ -63,6 +66,7 @@ export const BrainstormPad = ({
   }, [sessionId, currentUserId]);
 
   const execCmd = (cmd: string, arg?: string) => {
+    if (isReadOnly) return;
     document.execCommand(cmd, false, arg);
     editorRef.current?.focus();
   };
@@ -83,20 +87,22 @@ export const BrainstormPad = ({
   }, [sessionId]);
 
   const handleEditorInput = useCallback(() => {
+    if (isReadOnly) return;
     const text = editorRef.current?.innerText ?? "";
     setCharCount(text.trim().length);
     debouncedSave();
-  }, [debouncedSave]);
+  }, [debouncedSave, isReadOnly]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      if (isReadOnly) return;
       if (cursorTimerRef.current !== null) return;
       const x = e.clientX / window.innerWidth;
       const y = e.clientY / window.innerHeight;
       sendMessage({ type: "cursor_move", payload: { x, y, username: currentUsername } });
       cursorTimerRef.current = window.setTimeout(() => { cursorTimerRef.current = null; }, 50);
     },
-    [sendMessage, currentUsername],
+    [sendMessage, currentUsername, isReadOnly],
   );
 
   return (
@@ -140,7 +146,7 @@ export const BrainstormPad = ({
                   {currentUsername}'s Pad
                 </p>
                 <p className="font-body text-[#888]" style={{ fontSize: 10, marginTop: 1 }}>
-                  Private brainstorm area · only you can edit
+                  {isReadOnly ? "Session ended · read-only" : "Private brainstorm area · only you can edit"}
                 </p>
               </div>
             </div>
@@ -165,13 +171,14 @@ export const BrainstormPad = ({
               <button
                 key={a.label}
                 title={a.title}
+                disabled={isReadOnly}
                 onMouseDown={(e) => { e.preventDefault(); execCmd(a.cmd, a.arg); }}
                 className="font-body hover:bg-[#f0f0eb] transition-colors duration-100"
                 style={{
                   ...a.style,
                   fontSize: 12, padding: "4px 8px", borderRadius: 3,
-                  border: "none", background: "transparent", cursor: "pointer",
-                  minWidth: 28, color: "#13131A",
+                  border: "none", background: "transparent", cursor: isReadOnly ? "not-allowed" : "pointer",
+                  minWidth: 28, color: isReadOnly ? "#bbb" : "#13131A",
                 }}
               >
                 {a.label}
@@ -186,7 +193,7 @@ export const BrainstormPad = ({
             <div
               ref={editorRef}
               className="pad-editor"
-              contentEditable
+              contentEditable={!isReadOnly}
               suppressContentEditableWarning
               data-placeholder="Start writing your thoughts here… anything goes. This is your private brainstorm space."
               onInput={handleEditorInput}
@@ -237,7 +244,7 @@ export const BrainstormPad = ({
                   key={p.id}
                   onClick={() => onViewPad(p.id, p.username)}
                   className="w-full flex items-center hover:bg-[#ece9e0] transition-colors duration-150 text-left"
-                  style={{ padding: "12px 16px", borderBottom: "1px solid #e5e5e0", gap: 10, background: "transparent", border_bottom: "1px solid #e5e5e0", cursor: "pointer" }}
+                  style={{ padding: "12px 16px", borderBottom: "1px solid #e5e5e0", gap: 10, background: "transparent", cursor: "pointer" }}
                 >
                   <div
                     className="flex items-center justify-center font-body font-bold text-white rounded-full flex-shrink-0"

@@ -35,7 +35,6 @@ interface Props {
   // Merged       → locked/greyed in graph + shown in right doc panel
   ideas: ShortlistedIdea[];
   isOwner: boolean;
-  currentUserId: string;
 }
 
 // ─── Branch colours ───────────────────────────────────────────────────────────
@@ -489,7 +488,7 @@ function BranchGraph({ ideas, selectedIds, mergedIds, isOwner, onToggle }: {
 }
 
 // ─── Main FinalDocument ───────────────────────────────────────────────────────
-export const FinalDocument = ({ sessionTitle, ideas, isOwner, currentUserId }: Props) => {
+export const FinalDocument = ({ sessionTitle, ideas, isOwner }: Props) => {
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
   const [mergedIdeas,  setMergedIdeas]  = useState<MergedIdea[]>([]);
   const [noteMap,      setNoteMap]      = useState<Record<string, string>>({});
@@ -501,24 +500,31 @@ export const FinalDocument = ({ sessionTitle, ideas, isOwner, currentUserId }: P
   const [justMerged,   setJustMerged]   = useState<Set<string>>(new Set());
 
   const seededIdsRef = useRef<Set<string>>(new Set());
+
+  const mergeUniqueIdeas = useCallback((prev: MergedIdea[], next: MergedIdea[]) => {
+    const byId = new Map<string, MergedIdea>();
+    for (const idea of prev) byId.set(idea.id, idea);
+    for (const idea of next) byId.set(idea.id, idea);
+    return Array.from(byId.values());
+  }, []);
   // Split incoming ideas by status
   const shortlistedIdeas = useMemo(() => ideas.filter(i => i.status !== "merged"), [ideas]);
   const alreadyMerged    = useMemo(() => ideas.filter(i => i.status === "merged"),  [ideas]);
 
   // Seed the doc panel with ideas already merged (e.g. after remount / page refresh)
-   useEffect(() => {
+  useEffect(() => {
     if (alreadyMerged.length === 0) return;
     setMergedIdeas(prev => {
       const existingIds = new Set(prev.map(m => m.id));
-      const newOnes = alreadyMerged
+      const additions = alreadyMerged
         .filter(i => !existingIds.has(i.id) && !seededIdsRef.current.has(i.id))
         .map(i => ({ ...i, mergedAt: new Date(), ownerNote: "" }));
-      if (newOnes.length === 0) return prev;
+      if (additions.length === 0) return prev;
       // Mark these as seeded so future prop updates don't re-add them
-      newOnes.forEach(i => seededIdsRef.current.add(i.id));
-      return [...prev, ...newOnes];
+      additions.forEach(i => seededIdsRef.current.add(i.id));
+      return mergeUniqueIdeas(prev, additions);
     });
-  }, [alreadyMerged]);
+  }, [alreadyMerged, mergeUniqueIdeas]);
 
   const branchOrder = useMemo(() => {
     const seen: string[] = [];
@@ -559,7 +565,7 @@ export const FinalDocument = ({ sessionTitle, ideas, isOwner, currentUserId }: P
       setJustMerged(new Set(toAdd.map(i => i.id)));
       setTimeout(() => setJustMerged(new Set()), 1400);
 
-      setMergedIdeas(p => [...p, ...toAdd]);
+      setMergedIdeas((prev) => mergeUniqueIdeas(prev, toAdd));
       setSelectedIds(new Set());
     } finally {
       setMerging(false);

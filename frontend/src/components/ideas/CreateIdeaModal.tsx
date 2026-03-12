@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 
-import type { IdeaCreate, IdeaNode, WSMessage } from "../../types";
+import type { Idea, IdeaCreate, IdeaNode } from "../../types";
 import { useIdeaStore } from "../../store/ideaStore";
 import { Modal } from "../shared/Modal";
 
@@ -9,8 +9,7 @@ interface Props {
   onClose: () => void;
   sessionId: string;
   ideaTree: IdeaNode[];
-  onSubmit: (payload: IdeaCreate) => Promise<void>;
-  sendMessage: (message: WSMessage) => void;
+  onSubmit: (payload: IdeaCreate) => Promise<Idea>;
 }
 
 const flattenIdeas = (nodes: IdeaNode[]): { id: string; title: string }[] => {
@@ -27,7 +26,7 @@ const flattenIdeas = (nodes: IdeaNode[]): { id: string; title: string }[] => {
 
 const BRANCH_SUGGESTIONS = ["main", "feature", "experiment", "alternative", "refined", "wild-card"];
 
-export const CreateIdeaModal = ({ open, onClose, sessionId, ideaTree, onSubmit, sendMessage }: Props) => {
+export const CreateIdeaModal = ({ open, onClose, sessionId, ideaTree, onSubmit }: Props) => {
   // ── Pre-fill parent from currently selected idea in the graph ──
   const selectedIdea = useIdeaStore((s) => s.selectedIdea);
 

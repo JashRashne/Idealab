@@ -13,13 +13,13 @@ import "reactflow/dist/style.css";
 
 import { useIdeas } from "../../hooks/useIdeas";
 import { useIdeaStore } from "../../store/ideaStore";
-import type { IdeaNode as IdeaNodeType, WSMessage } from "../../types";
+import { useSessionStore } from "../../store/sessionStore";
+import type { IdeaNode as IdeaNodeType } from "../../types";
 import { CreateIdeaModal } from "./CreateIdeaModal";
 import { IdeaNode } from "./IdeaNode";
 
 interface Props {
   sessionId: string;
-  sendMessage: (message: WSMessage) => void;
 }
 
 const nodeTypes: NodeTypes = { ideaNode: IdeaNode };
@@ -74,10 +74,12 @@ const buildGraph = (tree: IdeaNodeType[]): { nodes: Node[]; edges: Edge[] } => {
   return { nodes: laidOutNodes, edges };
 };
 
-export const IdeaBranchGraph = ({ sessionId, sendMessage }: Props) => {
+export const IdeaBranchGraph = ({ sessionId }: Props) => {
   const [open, setOpen]   = useState(false);
   const setSelectedIdea   = useIdeaStore((s) => s.setSelectedIdea);
   const tree              = useIdeaStore((s) => s.ideaTree);
+  const currentSession    = useSessionStore((s) => s.currentSession);
+  const isReadOnly        = currentSession?.status === "closed";
   const { createIdea }    = useIdeas(sessionId);
   const graph             = useMemo(() => buildGraph(tree), [tree]);
   const totalIdeas        = graph.nodes.length;
@@ -134,19 +136,21 @@ export const IdeaBranchGraph = ({ sessionId, sendMessage }: Props) => {
 
           {/* New Idea button */}
           <button
-            onClick={() => setOpen(true)}
+            onClick={() => { if (!isReadOnly) setOpen(true); }}
+            disabled={isReadOnly}
             className="font-display font-bold uppercase text-white flex items-center hover:bg-[#0a0a0a] hover:border-[#0a0a0a] transition-all duration-150"
             style={{
               fontSize: 12, letterSpacing: "0.08em", padding: "7px 16px",
-              background: "#3a5bff", border: "1.5px solid #3a5bff",
-              borderRadius: 4, gap: 7, cursor: "pointer",
+              background: isReadOnly ? "#bbb" : "#3a5bff",
+              border: `1.5px solid ${isReadOnly ? "#bbb" : "#3a5bff"}`,
+              borderRadius: 4, gap: 7, cursor: isReadOnly ? "not-allowed" : "pointer",
             }}
           >
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="6" y1="1" x2="6" y2="11" />
               <line x1="1" y1="6" x2="11" y2="6" />
             </svg>
-            New Idea
+            {isReadOnly ? "Read Only" : "New Idea"}
           </button>
         </div>
 
@@ -215,8 +219,7 @@ export const IdeaBranchGraph = ({ sessionId, sendMessage }: Props) => {
           onClose={() => setOpen(false)}
           sessionId={sessionId}
           ideaTree={tree}
-          onSubmit={async () => { /* mock mode: do nothing */ }}
-          sendMessage={sendMessage}
+          onSubmit={createIdea}
         />
       </div>
     </>

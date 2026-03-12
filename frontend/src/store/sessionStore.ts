@@ -42,7 +42,7 @@ export const useSessionStore = create<SessionStore>()(
     }),
     {
       name: "idealab-session-store",
-      partialState: (state: SessionStore) => ({
+      partialize: (state: SessionStore) => ({
         sessions: state.sessions,
         currentSession: state.currentSession,
       }),

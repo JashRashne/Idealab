@@ -14,6 +14,7 @@ import type { WSMessage } from "../../types";
 
 interface Props {
   sessionTitle: string;
+  sessionStatus?: "active" | "closed";
   participants: string[];
   onlineParticipantIds: string[];
   connectionStatus: "connecting" | "connected" | "disconnected";
@@ -70,6 +71,7 @@ const MOCK_PARTICIPANTS = [
 
 export const WorkspaceLayout = ({
   sessionTitle,
+  sessionStatus = "active",
   participants,
   onlineParticipantIds,
   connectionStatus,
@@ -122,12 +124,6 @@ export const WorkspaceLayout = ({
     () => finalDocIdeas.filter(i => i.status === "shortlisted").length,
     [finalDocIdeas]
   );
-
-  const getMockPadContent = (_userId: string, _username: string) => ({
-    userId: _userId, username: _username,
-    content: "",
-    lastUpdated: new Date(),
-  });
 
   return (
     <>
@@ -192,7 +188,8 @@ export const WorkspaceLayout = ({
                   gap: 7, fontSize: 12, padding: "11px 18px",
                   background: "transparent", border: "none",
                   borderBottom: isActive ? "2px solid #13131A" : "2px solid transparent",
-                  cursor: "pointer", color: isActive ? "#13131A" : "#888",
+                  cursor: "pointer",
+                  color: isActive ? "#13131A" : "#888",
                   marginBottom: -1, letterSpacing: "0.01em",
                 }}>
                 <span style={{ fontSize: 14 }}>{tab.icon}</span>
@@ -253,7 +250,7 @@ export const WorkspaceLayout = ({
                   </div>
                 </div>
                 <div className="flex-1 overflow-hidden">
-                  <IdeaBranchGraph sessionId={sessionId} sendMessage={sendMessage} />
+                  <IdeaBranchGraph sessionId={sessionId} />
                 </div>
               </div>
 
@@ -300,8 +297,7 @@ export const WorkspaceLayout = ({
               <FinalDocument
                 sessionTitle={sessionTitle}
                 ideas={finalDocIdeas}
-                isOwner={isOwner}
-                currentUserId={currentUserId}
+                isOwner={isOwner && sessionStatus === "active"}
               />
             </div>
           )}

@@ -82,6 +82,16 @@ async def update_idea_status(
                 status_code=403,
                 detail="Only the session owner can mark ideas as merged",
             )
+    elif status == "shortlisted":
+        session_repo = SessionRepository(db)
+        session = await session_repo.get_by_id(idea["session_id"])
+        is_idea_owner = idea.get("created_by") == current_user["id"]
+        is_session_owner = bool(session and session.get("owner_id") == current_user["id"])
+        if not (is_idea_owner or is_session_owner):
+            raise HTTPException(
+                status_code=403,
+                detail="Only the idea owner or session owner can shortlist this idea",
+            )
     else:
         if idea.get("created_by") != current_user["id"]:
             raise HTTPException(

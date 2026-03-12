@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 
 import { createComment, getComments } from "../../services/comment.service";
 import { updateStatus, voteIdea } from "../../services/idea.service";
+import { useAuthStore } from "../../store/authStore";
 import { useIdeaStore } from "../../store/ideaStore";
+import { useSessionStore } from "../../store/sessionStore";
 import type { Comment, IdeaStatus, WSMessage } from "../../types";
 import { AIPanel } from "./AIPanel";
 
@@ -42,11 +44,15 @@ function SendIcon() {
 export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
   const idea       = useIdeaStore((s) => s.selectedIdea);
   const updateIdea = useIdeaStore((s) => s.updateIdea);
+  const user       = useAuthStore((s) => s.user);
+  const session    = useSessionStore((s) => s.currentSession);
 
   const [comments,     setComments]     = useState<Comment[]>([]);
   const [commentText,  setCommentText]  = useState("");
   const [votePulse,    setVotePulse]    = useState(false);
   const [sendingComment, setSendingComment] = useState(false);
+  const [showShortlistConfirm, setShowShortlistConfirm] = useState(false);
+  const [statusError, setStatusError] = useState("");
 
   useEffect(() => {
     if (!idea) return;
@@ -85,13 +91,43 @@ export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
   }
 
   const cfg = STATUS_CONFIG[idea.status];
+  const participantCount = session?.participant_ids?.length ?? 0;
+  const isReadOnly = session?.status === "closed";
+  const isIdeaOwner = Boolean(user && idea.created_by === user.id);
+  const isSessionOwner = Boolean(user && session?.owner_id === user.id);
+  const canShortlist = isIdeaOwner || isSessionOwner;
+
+  const applyStatus = async (status: IdeaStatus) => {
+    try {
+      const updated = await updateStatus(idea.id, status);
+      updateIdea(updated);
+    } catch {
+      setStatusError("Unable to change status. You may not have permission for this action.");
+    }
+  };
 
   const setStatus = async (status: IdeaStatus) => {
-    const updated = await updateStatus(idea.id, status);
-    updateIdea(updated);
+    if (isReadOnly) return;
+    setStatusError("");
+
+    if (status === "shortlisted") {
+      if (!canShortlist) {
+        setStatusError("Only the idea owner or session owner can shortlist this idea.");
+        return;
+      }
+
+      const voteCount = idea.votes.length;
+      if (participantCount > 0 && voteCount * 2 <= participantCount) {
+        setShowShortlistConfirm(true);
+        return;
+      }
+    }
+
+    await applyStatus(status);
   };
 
   const onVote = async () => {
+    if (isReadOnly) return;
     const updated = await voteIdea(idea.id);
     updateIdea(updated);
     sendMessage({ type: "vote", payload: { idea_id: idea.id } });
@@ -100,6 +136,7 @@ export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
   };
 
   const onComment = async () => {
+    if (isReadOnly) return;
     if (!commentText.trim()) return;
     setSendingComment(true);
     try {
@@ -195,11 +232,13 @@ export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
             {/* Vote button */}
             <button
               onClick={() => void onVote()}
+              disabled={isReadOnly}
               className={`flex items-center font-display font-bold transition-all duration-150 hover:bg-[#f0f0eb]${votePulse ? " vote-pop" : ""}`}
               style={{
                 gap: 7, padding: "7px 14px",
                 border: "1.5px solid #13131A", borderRadius: 4,
-                background: "transparent", cursor: "pointer",
+                background: "transparent", cursor: isReadOnly ? "not-allowed" : "pointer",
+                opacity: isReadOnly ? 0.5 : 1,
                 fontSize: 12, letterSpacing: "0.04em",
               }}
             >
@@ -211,11 +250,13 @@ export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
             {/* Status select */}
             <select
               className="ci-status-select font-body flex-1"
+              disabled={isReadOnly}
               style={{
                 fontSize: 12, padding: "7px 10px",
                 border: `1.5px solid ${cfg.border}`,
                 borderRadius: 4, background: cfg.bg,
-                color: cfg.color, cursor: "pointer", outline: "none",
+                color: cfg.color, cursor: isReadOnly ? "not-allowed" : "pointer", outline: "none",
+                opacity: isReadOnly ? 0.6 : 1,
               }}
               value={idea.status}
               onChange={(e) => void setStatus(e.target.value as IdeaStatus)}
@@ -227,13 +268,18 @@ export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
               ))}
             </select>
           </div>
+          {statusError && (
+            <p className="font-body" style={{ marginTop: 8, fontSize: 11, color: "#e53e3e" }}>
+              {statusError}
+            </p>
+          )}
         </div>
 
         {/* ── Scrollable body ── */}
         <div className="flex-1 overflow-y-auto" style={{ padding: "0 20px 20px" }}>
 
           {/* AI Panel */}
-          <AIPanel sessionId={sessionId} />
+          {!isReadOnly && <AIPanel sessionId={sessionId} />}
 
           {/* Comments section */}
           <div style={{ marginTop: 24, borderTop: "1.5px solid #e5e5e0", paddingTop: 20 }}>
@@ -288,16 +334,17 @@ export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
                 onChange={(e) => setCommentText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && void onComment()}
                 placeholder="Add a comment…"
+                disabled={isReadOnly}
                 className="flex-1 font-body"
                 style={{
                   fontSize: 13, padding: "10px 14px",
                   border: "none", outline: "none",
-                  background: "#fff", color: "#13131A",
+                  background: isReadOnly ? "#f5f5f0" : "#fff", color: "#13131A",
                 }}
               />
               <button
                 onClick={() => void onComment()}
-                disabled={!commentText.trim() || sendingComment}
+                disabled={isReadOnly || !commentText.trim() || sendingComment}
                 className="flex items-center font-display font-bold uppercase text-white hover:bg-[#0a0a0a] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{
                   padding: "0 16px", fontSize: 11, letterSpacing: "0.08em",
@@ -311,6 +358,49 @@ export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
           </div>
         </div>
       </div>
+
+      {showShortlistConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1200,
+          }}
+        >
+          <div style={{ width: 420, background: "#fff", border: "1.5px solid #13131A", borderRadius: 4, padding: 20 }}>
+            <p className="font-display font-extrabold" style={{ fontSize: 18, marginBottom: 8 }}>
+              Shortlist with low vote support?
+            </p>
+            <p className="font-body" style={{ fontSize: 13, color: "#555", lineHeight: 1.65, marginBottom: 16 }}>
+              This idea has {idea.votes.length} vote{idea.votes.length !== 1 ? "s" : ""} out of {participantCount} participants
+              (50% or below). Are you sure you want to shortlist it?
+            </p>
+            <div className="flex items-center justify-end" style={{ gap: 8 }}>
+              <button
+                onClick={() => setShowShortlistConfirm(false)}
+                className="font-body"
+                style={{ padding: "8px 12px", border: "1.5px solid #ddd", borderRadius: 4, background: "#fff", cursor: "pointer", fontSize: 12 }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowShortlistConfirm(false);
+                  void applyStatus("shortlisted");
+                }}
+                className="font-display font-bold uppercase text-white"
+                style={{ padding: "8px 14px", border: "1.5px solid #3a5bff", borderRadius: 4, background: "#3a5bff", cursor: "pointer", fontSize: 11, letterSpacing: "0.08em" }}
+              >
+                Yes, shortlist
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

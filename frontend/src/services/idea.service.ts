@@ -1,6 +1,6 @@
 import api from "./api";
 import type { Idea, IdeaCreate, IdeaNode, IdeaStatus } from "../types";
-import { FALLBACK_IDEA_TREE, FALLBACK_IDEAS } from "./fallbackData";
+import { FALLBACK_IDEA_TREE } from "./fallbackData";
 import { useIdeaStore } from "../store/ideaStore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -84,7 +84,7 @@ export const updateIdea = async (
 };
 
 // ─── voteIdea ─────────────────────────────────────────────────────────────────
-export const voteIdea = async (id: string, currentUserId: string): Promise<Idea> => {
+export const voteIdea = async (id: string, currentUserId: string = "local_user"): Promise<Idea> => {
   try {
     const { data } = await api.post<Idea>(`/ideas/${id}/vote`);
     useIdeaStore.getState().updateIdea(data);

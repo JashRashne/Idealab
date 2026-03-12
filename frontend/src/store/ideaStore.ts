@@ -81,7 +81,7 @@ export const useIdeaStore = create<IdeaStore>()(
     {
       name: "idealab-idea-store", // localStorage key
       // Only persist the tree — not selectedIdea or fallback flag
-      partialState: (state: IdeaStore) => ({
+      partialize: (state: IdeaStore) => ({
         ideaTree: state.ideaTree,
       }),
     }
