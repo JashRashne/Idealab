@@ -3,6 +3,8 @@ import json
 from fastapi import WebSocket, WebSocketDisconnect
 
 from app.core.security import decode_token
+from app.db.client import get_database
+from app.db.repositories.pad_repository import PadRepository
 from app.websockets.events import WSEventType
 from app.websockets.manager import manager
 
@@ -56,6 +58,13 @@ async def websocket_endpoint(
                 )
 
             elif msg_type == WSEventType.CURSOR_MOVE:
+                db = get_database()
+                if db is not None:
+                    pad_repo = PadRepository(db)
+                    pad = await pad_repo.get(session_id, user_id)
+                    if pad and pad.get("is_private", False):
+                        continue
+
                 payload = message.get("payload", {})
                 x = float(payload.get("x", 0))
                 y = float(payload.get("y", 0))

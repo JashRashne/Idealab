@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class PadUpdate(BaseModel):
     content: str
+    is_private: Optional[bool] = None
 
 
 class PadResponse(BaseModel):
@@ -12,3 +13,4 @@ class PadResponse(BaseModel):
     session_id: str
     content: str
     updated_at: Optional[str] = None
+    is_private: bool = False

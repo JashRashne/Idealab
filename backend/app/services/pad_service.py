@@ -8,9 +8,13 @@ class PadService:
         self.repo = repo
 
     async def update_pad(
-        self, session_id: str, user_id: str, content: str
+        self,
+        session_id: str,
+        user_id: str,
+        content: str,
+        is_private: Optional[bool] = None,
     ) -> dict:
-        return await self.repo.upsert(session_id, user_id, content)
+        return await self.repo.upsert(session_id, user_id, content, is_private)
 
     async def get_pad(self, session_id: str, user_id: str) -> Optional[dict]:
         return await self.repo.get(session_id, user_id)

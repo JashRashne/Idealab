@@ -37,12 +37,14 @@ export const PadViewerModal = ({ open, userId, username, sessionId, onClose }: P
   const [content,      setContent]      = useState("");
   const [lastUpdated, setLastUpdated]   = useState<Date | null>(null);
   const [remoteCursor, setRemoteCursor] = useState<RemoteCursor | null>(null);
+  const [isPrivatePad, setIsPrivatePad] = useState(false);
   const cursorFadeRef = useRef<number | null>(null);
 
   // Load initial content whenever the viewer opens or target user changes
   useEffect(() => {
     if (!open || !userId || !sessionId) { setContent(""); return; }
     setContent("");
+    setIsPrivatePad(false);
     setRemoteCursor(null);
     api
       .get<{ content: string; updated_at?: string }>(`/pads/${sessionId}/${userId}`)
@@ -50,7 +52,11 @@ export const PadViewerModal = ({ open, userId, username, sessionId, onClose }: P
         setContent(data.content ?? "");
         if (data.updated_at) setLastUpdated(new Date(data.updated_at));
       })
-      .catch(() => {});
+      .catch((error: { response?: { status?: number } }) => {
+        if (error.response?.status === 403) {
+          setIsPrivatePad(true);
+        }
+      });
   }, [open, userId, sessionId]);
 
   // Listen for real-time pad_updated events (broadcasted via WS → window event)
@@ -224,7 +230,25 @@ export const PadViewerModal = ({ open, userId, username, sessionId, onClose }: P
         {/* CONTENT */}
         <div className="flex flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto" style={{ padding: "36px 48px", background: "#fff" }}>
-            {content.replace(/<[^>]*>/g, "").trim() ? (
+            {isPrivatePad ? (
+              <div className="flex flex-col items-center justify-center h-full text-center" style={{ paddingBottom: 80 }}>
+                <div
+                  style={{
+                    width: 52, height: 52, border: "1.5px dashed #ddd", borderRadius: 4,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 22, marginBottom: 20,
+                  }}
+                >
+                  🔒
+                </div>
+                <p className="font-display font-extrabold" style={{ fontSize: 18, letterSpacing: "-0.02em", marginBottom: 8 }}>
+                  This pad is private
+                </p>
+                <p className="font-body text-[#aaa]" style={{ fontSize: 13, lineHeight: 1.7, maxWidth: 300 }}>
+                  {username} has privacy enabled, so this brainstorm pad is not visible to others.
+                </p>
+              </div>
+            ) : content.replace(/<[^>]*>/g, "").trim() ? (
               <div
                 className="pad-viewer-content"
                 style={{

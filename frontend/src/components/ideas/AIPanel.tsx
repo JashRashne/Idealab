@@ -1,4 +1,6 @@
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { expandIdea, mergeIdeas, summarizeSession } from "../../services/ai.service";
 import { useIdeaStore } from "../../store/ideaStore";
@@ -149,6 +151,14 @@ export const AIPanel = ({ sessionId }: Props) => {
           background-repeat: no-repeat;
           background-position: right 10px center;
         }
+        .ai-markdown h1, .ai-markdown h2, .ai-markdown h3 { margin: 8px 0 6px; font-weight: 800; color: #13131A; }
+        .ai-markdown p { margin: 6px 0; }
+        .ai-markdown ul, .ai-markdown ol { margin: 6px 0; padding-left: 20px; }
+        .ai-markdown li { margin: 3px 0; }
+        .ai-markdown code { background: #f5f5f0; border: 1px solid #e5e5e0; border-radius: 3px; padding: 1px 4px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+        .ai-markdown pre { background: #f5f5f0; border: 1px solid #e5e5e0; border-radius: 4px; padding: 10px; overflow-x: auto; }
+        .ai-markdown pre code { border: none; background: transparent; padding: 0; }
+        .ai-markdown blockquote { margin: 8px 0; padding: 6px 10px; border-left: 3px solid #a855f7; color: #555; background: rgba(168,85,247,0.04); }
       `}</style>
 
       <div style={{ marginTop: 24, borderTop: "1.5px solid #e5e5e0", paddingTop: 20 }}>
@@ -279,9 +289,9 @@ export const AIPanel = ({ sessionId }: Props) => {
                   <span className="font-body text-[#aaa]" style={{ fontSize: 12 }}>Thinking…</span>
                 </div>
               ) : (
-                <p className="font-body" style={{ fontSize: 13, lineHeight: 1.75, color: "#333", whiteSpace: "pre-wrap" }}>
-                  {output}
-                </p>
+                <div className="font-body ai-markdown" style={{ fontSize: 13, lineHeight: 1.75, color: "#333" }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>
+                </div>
               )}
             </div>
           </div>
