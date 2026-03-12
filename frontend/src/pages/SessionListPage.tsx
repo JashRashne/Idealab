@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { CreateSessionModal } from "../components/session/CreateSessionModal";
+import { JoinSessionModal } from "../components/session/JoinSessionModal";
 import { SessionCard } from "../components/session/SessionCard";
-import { getSessions, joinSession } from "../services/session.service";
+import { endSession, getSessions, joinSession } from "../services/session.service";
 import { useAuthStore } from "../store/authStore";
 import { useSessionStore } from "../store/sessionStore";
 import type { Session } from "../types";
@@ -64,6 +65,7 @@ function EmptyState({ onNew }: { onNew: () => void }) {
 ═══════════════════════════════════════════ */
 export const SessionListPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
+  const [joinOpen,  setJoinOpen]  = useState(false);
   const [loading,   setLoading]   = useState(true);
   const navigate = useNavigate();
 
@@ -71,6 +73,15 @@ export const SessionListPage = () => {
   const sessions    = useSessionStore((s) => s.sessions);
   const setSessions = useSessionStore((s) => s.setSessions);
   const addSession  = useSessionStore((s) => s.addSession);
+
+  const isOngoing = (s: Session) => {
+    const anyS = s as unknown as { status?: string; is_active?: boolean };
+    if (typeof anyS.is_active === "boolean") return anyS.is_active;
+    return (s.status ?? "active") === "active";
+  };
+
+  const ongoingSessions = sessions.filter(isOngoing);
+  const endedSessions   = sessions.filter((s) => !isOngoing(s));
 
   useEffect(() => {
     const load = async () => {
@@ -86,6 +97,19 @@ export const SessionListPage = () => {
     const joined  = await joinSession(id);
     const updated = sessions.map((s) => (s.id === joined.id ? joined : s));
     setSessions(updated);
+  };
+
+  const onEnd = async (id: string) => {
+    const closed = await endSession(id);
+    const updated = sessions.map((s) => (s.id === closed.id ? closed : s));
+    setSessions(updated);
+  };
+
+  const onJoinedFromModal = (session: Session) => {
+    // ensure it's in the list
+    const exists = sessions.some((s) => s.id === session.id);
+    if (!exists) addSession(session);
+    navigate(`/sessions/${session.id}`);
   };
 
   const onCreated = (session: Session) => {
@@ -158,6 +182,14 @@ export const SessionListPage = () => {
             {user && <div style={{ width: 1, height: 32, background: "#e0ddd5" }} />}
 
             <button
+              onClick={() => setJoinOpen(true)}
+              className="font-display font-bold uppercase text-ink hover:bg-ink hover:text-[#f5f5f0] transition-all duration-[180ms] flex items-center"
+              style={{ fontSize: 12, letterSpacing: "0.08em", padding: "10px 18px", border: "1.5px solid #13131A", borderRadius: 4, gap: 8, background: "transparent" }}
+            >
+              Join Session
+            </button>
+
+            <button
               onClick={() => setModalOpen(true)}
               className="font-display font-bold uppercase text-white hover:bg-[#0a0a0a] hover:border-[#0a0a0a] transition-all duration-[180ms] flex items-center"
               style={{ fontSize: 13, letterSpacing: "0.08em", padding: "10px 20px", background: "#3a5bff", border: "1.5px solid #3a5bff", borderRadius: 4, gap: 8 }}
@@ -178,9 +210,9 @@ export const SessionListPage = () => {
             >
               {[
                 {
-                  num: sessions.length,
-                  label: "Active Sessions",
-                  sub: "across your workspace",
+                  num: ongoingSessions.length,
+                  label: "Ongoing Sessions",
+                  sub: "currently running",
                 },
                 {
                   num: sessions.reduce((acc, s) => acc + (s.participant_ids?.length ?? 0), 0),
@@ -213,7 +245,7 @@ export const SessionListPage = () => {
           {/* Section label */}
           {!loading && sessions.length > 0 && (
             <div className="flex items-center" style={{ marginBottom: 20, gap: 12 }}>
-              <span className="font-body text-[#888] uppercase" style={{ fontSize: 10, letterSpacing: "0.2em" }}>All Sessions</span>
+              <span className="font-body text-[#888] uppercase" style={{ fontSize: 10, letterSpacing: "0.2em" }}>Ongoing</span>
               <div style={{ flex: 1, height: 1, background: "#e0ddd5" }} />
             </div>
           )}
@@ -242,8 +274,8 @@ export const SessionListPage = () => {
               <EmptyState onNew={() => setModalOpen(true)} />
             )}
 
-            {/* Session cards — wrapped in outline grid style */}
-            {!loading && sessions.map((session, i) => (
+            {/* Session cards — Ongoing */}
+            {!loading && ongoingSessions.map((session, i) => (
               <div
                 key={session.id}
                 style={{
@@ -253,7 +285,7 @@ export const SessionListPage = () => {
                   marginBottom: -1,
                   // Round corners on extremes
                   borderTopLeftRadius:     i === 0 ? 4 : 0,
-                  borderTopRightRadius:    sessions.length <= 3 && i === Math.min(2, sessions.length - 1) ? 4 : 0,
+                  borderTopRightRadius:    ongoingSessions.length <= 3 && i === Math.min(2, ongoingSessions.length - 1) ? 4 : 0,
                   borderBottomLeftRadius:  0,
                   borderBottomRightRadius: 0,
                   overflow: "hidden",
@@ -266,10 +298,50 @@ export const SessionListPage = () => {
                   session={session}
                   isParticipant={Boolean(user && (session.participant_ids ?? []).includes(user.id))}
                   onJoin={onJoin}
+                  isOwner={Boolean(user && session.owner_id === user.id)}
+                  onEnd={onEnd}
                 />
               </div>
             ))}
           </div>
+
+          {/* Ended section */}
+          {!loading && endedSessions.length > 0 && (
+            <>
+              <div className="flex items-center" style={{ marginTop: 34, marginBottom: 20, gap: 12 }}>
+                <span className="font-body text-[#888] uppercase" style={{ fontSize: 10, letterSpacing: "0.2em" }}>Ended</span>
+                <div style={{ flex: 1, height: 1, background: "#e0ddd5" }} />
+              </div>
+
+              <div className="grid gap-0" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
+                {endedSessions.map((session, i) => (
+                  <div
+                    key={session.id}
+                    style={{
+                      border: "1.5px solid #13131A",
+                      borderRadius: 0,
+                      marginRight: -1,
+                      marginBottom: -1,
+                      borderTopLeftRadius: i === 0 ? 4 : 0,
+                      borderTopRightRadius: endedSessions.length <= 3 && i === Math.min(2, endedSessions.length - 1) ? 4 : 0,
+                      overflow: "hidden",
+                      transition: "background 0.18s",
+                      opacity: 0.9,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0eb")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <SessionCard
+                      session={session}
+                      isParticipant={Boolean(user && (session.participant_ids ?? []).includes(user.id))}
+                      onJoin={onJoin}
+                      isOwner={Boolean(user && session.owner_id === user.id)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* New session CTA — only shown when sessions exist */}
           {!loading && sessions.length > 0 && (
@@ -296,6 +368,7 @@ export const SessionListPage = () => {
       </div>
 
       <CreateSessionModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={onCreated} />
+      <JoinSessionModal open={joinOpen} onClose={() => setJoinOpen(false)} onJoined={onJoinedFromModal} />
     </>
   );
 };

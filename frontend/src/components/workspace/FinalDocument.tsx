@@ -384,13 +384,13 @@ function BranchGraph({ ideas, selectedIds, mergedIds, isOwner, onToggle }: {
                   style={{
                     height: ROW, paddingLeft: svgW + 8, paddingRight: 10,
                     display: "flex", alignItems: "center",
-                    // locked = very dimmed; selected = branch tint; hover = subtle
+                    // locked = very dimmed; selected = branch tint; hover = subtle light tint
                     background: isLocked
-                      ? "rgba(255,255,255,0.015)"
+                      ? "rgba(255,255,255,0.25)"
                       : isSel
                       ? `${color}16`
-                      : isHov ? "#111120" : "transparent",
-                    borderBottom: isComment ? "none" : "1px solid #0f0f1c",
+                      : isHov ? "#ecece4" : "transparent",
+                    borderBottom: "none",
                     cursor: isLocked ? "default" : isOwner ? "pointer" : "default",
                     transition: "background .1s",
                     position: "relative",
@@ -609,8 +609,9 @@ export const FinalDocument = ({ sessionTitle, ideas, isOwner, currentUserId }: P
         <div style={{
           width: 310, flexShrink: 0,
           display: "flex", flexDirection: "column",
-          background: "#0d0d14",
-          borderRight: "1px solid #161622",
+          // Keep the graph panel on a light background to match the rest of the app
+          background: "#f5f5f0",
+          borderRight: "1px solid #e0e0da",
           overflow: "hidden",
         }}>
           {/* Header */}
@@ -743,9 +744,10 @@ export const FinalDocument = ({ sessionTitle, ideas, isOwner, currentUserId }: P
                   const isNew = justMerged.has(idea.id);
 
                   return (
-                    <div key={idea.id}
+                    <div
+                      key={idea.id}
                       className={`idea-row${isNew ? " just-merged" : ""}`}
-                      style={{ marginBottom: 40, paddingBottom: 40, borderBottom: i < mergedIdeas.length - 1 ? "1px solid #e8e8e2" : "none" }}
+                      style={{ marginBottom: 40, paddingBottom: 40 }}
                     >
                       {/* Idea header */}
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 12 }}>

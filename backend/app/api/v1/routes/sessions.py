@@ -24,8 +24,11 @@ async def create_session(
 
 
 @router.get("/", response_model=List[SessionResponse])
-async def list_sessions(service: SessionService = Depends(get_session_service)):
-    return await service.get_sessions()
+async def list_sessions(
+    include_closed: bool = True,
+    service: SessionService = Depends(get_session_service),
+):
+    return await service.get_sessions(include_closed=include_closed)
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
@@ -40,3 +43,12 @@ async def join_session(
     current_user: dict = Depends(get_current_user),
 ):
     return await service.join_session(session_id, current_user["_id"])
+
+
+@router.post("/{session_id}/end", response_model=SessionResponse)
+async def end_session(
+    session_id: str,
+    service: SessionService = Depends(get_session_service),
+    current_user: dict = Depends(get_current_user),
+):
+    return await service.end_session(session_id, current_user["_id"])

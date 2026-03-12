@@ -10,3 +10,8 @@ class SessionRepository(BaseRepository):
 
     async def get_active_sessions(self) -> List[dict]:
         return await self.find_many({"is_active": True})
+
+    async def get_sessions(self, include_closed: bool = True) -> List[dict]:
+        if include_closed:
+            return await self.find_many({})
+        return await self.get_active_sessions()

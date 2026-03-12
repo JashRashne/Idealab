@@ -86,3 +86,26 @@ export const joinSession = async (id: string): Promise<Session> => {
     return joined;
   }
 };
+
+// ─── endSession ────────────────────────────────────────────────────────────────
+export const endSession = async (id: string): Promise<Session> => {
+  try {
+    const { data } = await api.post<Session>(`/sessions/${id}/end`);
+    // Keep store in sync
+    const st = useSessionStore.getState();
+    st.setCurrentSession(data);
+    st.setSessions(st.sessions.map((s) => (s.id === data.id ? data : s)), st.isUsingFallback);
+    return data;
+  } catch {
+    // Local fallback: mark as closed
+    const st = useSessionStore.getState();
+    const existing =
+      st.sessions.find((s) => s.id === id) ??
+      FALLBACK_SESSIONS.find((s) => s.id === id) ??
+      FALLBACK_SESSIONS[0];
+    const closed: Session = { ...existing, status: "closed" };
+    st.setCurrentSession(closed);
+    st.setSessions(st.sessions.map((s) => (s.id === id ? closed : s)), true);
+    return closed;
+  }
+};

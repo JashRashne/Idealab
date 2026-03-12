@@ -7,10 +7,13 @@ interface Props {
   session: Session;
   isParticipant: boolean;
   onJoin: (id: string) => Promise<void>;
+  isOwner?: boolean;
+  onEnd?: (id: string) => Promise<void>;
 }
 
-export const SessionCard = ({ session, isParticipant, onJoin }: Props) => {
+export const SessionCard = ({ session, isParticipant, onJoin, isOwner = true, onEnd }: Props) => {
   const participantCount = (session.participant_ids ?? []).length;
+  const canEnd = isOwner && session.status === "active" && typeof onEnd === "function";
 
   return (
     <article className="h-full flex flex-col" style={{ padding: 28 }}>
@@ -70,40 +73,64 @@ export const SessionCard = ({ session, isParticipant, onJoin }: Props) => {
         </div>
 
         {/* Action button */}
-        {isParticipant ? (
-          <Link
-            to={`/sessions/${session.id}`}
-            className="font-display font-bold uppercase text-white hover:bg-[#0a0a0a] hover:border-[#0a0a0a] transition-all duration-[180ms]"
-            style={{
-              fontSize: 12,
-              letterSpacing: "0.08em",
-              padding: "8px 18px",
-              background: "#3a5bff",
-              border: "1.5px solid #3a5bff",
-              borderRadius: 4,
-              textDecoration: "none",
-              display: "inline-block",
-            }}
-          >
-            Open →
-          </Link>
-        ) : (
-          <button
-            onClick={() => void onJoin(session.id)}
-            className="font-display font-bold uppercase text-ink hover:bg-ink hover:text-[#f5f5f0] transition-all duration-[180ms]"
-            style={{
-              fontSize: 12,
-              letterSpacing: "0.08em",
-              padding: "8px 18px",
-              background: "transparent",
-              border: "1.5px solid #13131A",
-              borderRadius: 4,
-              cursor: "pointer",
-            }}
-          >
-            Join
-          </button>
-        )}
+        <div className="flex items-center" style={{ gap: 8 }}>
+          {canEnd && (
+            <button
+              onClick={() => void onEnd(session.id)}
+              className="font-display font-bold uppercase transition-all duration-[180ms]"
+              style={{
+                fontSize: 12,
+                letterSpacing: "0.08em",
+                padding: "8px 14px",
+                background: "transparent",
+                border: "1.5px solid #e53e3e",
+                borderRadius: 4,
+                cursor: "pointer",
+                color: "#e53e3e",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(229,62,62,0.08)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              title="End this session"
+            >
+              End
+            </button>
+          )}
+
+          {isParticipant ? (
+            <Link
+              to={`/sessions/${session.id}`}
+              className="font-display font-bold uppercase text-white hover:bg-[#0a0a0a] hover:border-[#0a0a0a] transition-all duration-[180ms]"
+              style={{
+                fontSize: 12,
+                letterSpacing: "0.08em",
+                padding: "8px 18px",
+                background: "#3a5bff",
+                border: "1.5px solid #3a5bff",
+                borderRadius: 4,
+                textDecoration: "none",
+                display: "inline-block",
+              }}
+            >
+              Open →
+            </Link>
+          ) : (
+            <button
+              onClick={() => void onJoin(session.id)}
+              className="font-display font-bold uppercase text-ink hover:bg-ink hover:text-[#f5f5f0] transition-all duration-[180ms]"
+              style={{
+                fontSize: 12,
+                letterSpacing: "0.08em",
+                padding: "8px 18px",
+                background: "transparent",
+                border: "1.5px solid #13131A",
+                borderRadius: 4,
+                cursor: "pointer",
+              }}
+            >
+              Join
+            </button>
+          )}
+        </div>
       </div>
     </article>
   );
