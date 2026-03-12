@@ -2,16 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/shared/Button";
 
-/*
-  ╔══════════════════════════════════════════════════════════╗
-  ║  IMPORTANT — Remove duplicate global <Navbar> on "/"    ║
-  ║  In App.tsx:                                             ║
-  ║    const { pathname } = useLocation();                   ║
-  ║    {pathname !== "/" && <Navbar />}                      ║
-  ╚══════════════════════════════════════════════════════════╝
-*/
-
-/* ─── Scroll Reveal ─── */
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
