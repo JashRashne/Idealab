@@ -1,27 +1,44 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ideaService } from '../services/idea.service'
-import type { CreateIdeaData, UpdateIdeaData } from '../types'
+import { useEffect, useState } from "react";
 
-export function useSessionIdeas(sessionId: string) {
-  return useQuery({
-    queryKey: ['ideas', sessionId],
-    queryFn: () => ideaService.getSessionIdeas(sessionId),
-    enabled: !!sessionId,
-  })
-}
+import { createIdea, getIdeaTree, voteIdea } from "../services/idea.service";
+import { useIdeaStore } from "../store/ideaStore";
+import type { IdeaCreate } from "../types";
 
-export function useCreateIdea() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (data: CreateIdeaData) => ideaService.createIdea(data),
-    onSuccess: (idea) => qc.invalidateQueries({ queryKey: ['ideas', idea.session_id] }),
-  })
-}
+export const useIdeas = (sessionId: string) => {
+  const ideaTree = useIdeaStore((s) => s.ideaTree);
+  const setIdeaTree = useIdeaStore((s) => s.setIdeaTree);
+  const addIdea = useIdeaStore((s) => s.addIdea);
+  const updateIdeaStore = useIdeaStore((s) => s.updateIdea);
 
-export function useVoteIdea() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => ideaService.voteIdea(id),
-    onSuccess: (idea) => qc.invalidateQueries({ queryKey: ['ideas', idea.session_id] }),
-  })
-}
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadIdeas = async () => {
+      setLoading(true);
+      try {
+        const tree = await getIdeaTree(sessionId);
+        setIdeaTree(tree);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (sessionId) {
+      void loadIdeas();
+    }
+  }, [sessionId, setIdeaTree]);
+
+  const onCreateIdea = async (payload: IdeaCreate) => {
+    const idea = await createIdea(payload);
+    addIdea(idea);
+    return idea;
+  };
+
+  const onVoteIdea = async (ideaId: string) => {
+    const updated = await voteIdea(ideaId);
+    updateIdeaStore(updated);
+    return updated;
+  };
+
+  return { ideaTree, loading, createIdea: onCreateIdea, voteIdea: onVoteIdea };
+};

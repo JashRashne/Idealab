@@ -1,28 +1,27 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import type { User } from '../types'
+import { create } from "zustand";
 
-interface AuthState {
-  user: User | null
-  accessToken: string | null
-  refreshToken: string | null
-  isAuthenticated: boolean
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void
-  logout: () => void
+import { getMe } from "../services/auth.service";
+import type { AuthState, User } from "../types";
+
+interface AuthStore extends AuthState {
+  initialized: boolean;
+  setUser: (user: User) => void;
+  clearUser: () => void;
+  initialize: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      accessToken: null,
-      refreshToken: null,
-      isAuthenticated: false,
-      setAuth: (user, accessToken, refreshToken) =>
-        set({ user, accessToken, refreshToken, isAuthenticated: true }),
-      logout: () =>
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
-    }),
-    { name: 'augenblick-auth' },
-  ),
-)
+export const useAuthStore = create<AuthStore>((set) => ({
+  user: null,
+  isAuthenticated: false,
+  initialized: false,
+  setUser: (user) => set({ user, isAuthenticated: true }),
+  clearUser: () => set({ user: null, isAuthenticated: false }),
+  initialize: async () => {
+    try {
+      const me = await getMe();
+      set({ user: me, isAuthenticated: true, initialized: true });
+    } catch {
+      set({ user: null, isAuthenticated: false, initialized: true });
+    }
+  }
+}));

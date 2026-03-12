@@ -1,34 +1,131 @@
-import { useEffect, useRef, useCallback } from 'react'
-import { useAuthStore } from '../store/authStore'
-import type { WSMessage } from '../types'
+import { useEffect, useRef, useState } from "react";
 
-export function useWebSocket(
-  sessionId: string | null,
-  onMessage: (msg: WSMessage) => void,
-) {
-  const ws = useRef<WebSocket | null>(null)
-  const token = useAuthStore((s) => s.accessToken)
+import { useIdeaStore } from "../store/ideaStore";
+import { useSessionStore } from "../store/sessionStore";
+import type { Idea, WSMessage } from "../types";
 
-  const connect = useCallback(() => {
-    if (!sessionId || !token) return
-    const url = `ws://localhost:8000/ws/${sessionId}?token=${token}`
-    ws.current = new WebSocket(url)
-    ws.current.onmessage = (e) => {
-      try { onMessage(JSON.parse(e.data) as WSMessage) } catch { /* ignore */ }
-    }
-    ws.current.onclose = () => setTimeout(connect, 3000)
-  }, [sessionId, token, onMessage])
+type ConnectionStatus = "connecting" | "connected" | "disconnected";
+
+const isWSMessage = (value: unknown): value is WSMessage => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const message = value as { type?: unknown; payload?: unknown };
+  return typeof message.type === "string" && typeof message.payload === "object" && message.payload !== null;
+};
+
+const extractIdea = (payload: Record<string, unknown>): Idea | null => {
+  const candidate = payload.idea;
+  if (!candidate || typeof candidate !== "object") {
+    return null;
+  }
+  return candidate as Idea;
+};
+
+export const useWebSocket = (sessionId: string, userId: string) => {
+  const wsRef = useRef<WebSocket | null>(null);
+  const retryRef = useRef(0);
+  const reconnectTimerRef = useRef<number | null>(null);
+
+  const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("connecting");
+
+  const addIdea = useIdeaStore((s) => s.addIdea);
+  const updateIdea = useIdeaStore((s) => s.updateIdea);
+  const setOnlineParticipants = useSessionStore((s) => s.setOnlineParticipants);
 
   useEffect(() => {
-    connect()
-    return () => { ws.current?.close() }
-  }, [connect])
-
-  const send = useCallback((msg: WSMessage) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify(msg))
+    if (!sessionId || !userId) {
+      return;
     }
-  }, [])
 
-  return { send }
-}
+    let mounted = true;
+    const wsBase = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
+    const token = window.sessionStorage.getItem("wsToken") ?? "";
+
+    const connect = () => {
+      if (!mounted) {
+        return;
+      }
+
+      setConnectionStatus("connecting");
+      const ws = new WebSocket(`${wsBase}/${sessionId}?token=${encodeURIComponent(token)}`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        retryRef.current = 0;
+        setConnectionStatus("connected");
+        ws.send(JSON.stringify({ type: "join_session", payload: { session_id: sessionId, user_id: userId } }));
+      };
+
+      ws.onmessage = (event) => {
+        const parsed = JSON.parse(event.data) as unknown;
+        if (!isWSMessage(parsed)) {
+          return;
+        }
+
+        setLastMessage(parsed);
+        const payload = parsed.payload;
+
+        if (parsed.type === "idea_added") {
+          const idea = extractIdea(payload);
+          if (idea) {
+            addIdea(idea);
+          }
+        }
+
+        if (parsed.type === "vote_updated") {
+          const idea = extractIdea(payload);
+          if (idea) {
+            updateIdea(idea);
+          }
+        }
+
+        if (parsed.type === "comment_added") {
+          window.dispatchEvent(new CustomEvent("idealab:comment-added"));
+        }
+
+        if (parsed.type === "user_joined" || parsed.type === "user_left") {
+          const users = payload.participant_ids;
+          if (Array.isArray(users)) {
+            setOnlineParticipants(users.filter((u): u is string => typeof u === "string"));
+          }
+        }
+      };
+
+      ws.onclose = () => {
+        if (!mounted) {
+          return;
+        }
+        setConnectionStatus("disconnected");
+        const delay = Math.min(1000 * 2 ** retryRef.current, 30000);
+        retryRef.current += 1;
+        reconnectTimerRef.current = window.setTimeout(connect, delay);
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+    };
+
+    connect();
+
+    return () => {
+      mounted = false;
+      if (reconnectTimerRef.current !== null) {
+        window.clearTimeout(reconnectTimerRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [sessionId, userId, addIdea, updateIdea, setOnlineParticipants]);
+
+  const sendMessage = (message: WSMessage) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(message));
+    }
+  };
+
+  return { sendMessage, lastMessage, connectionStatus };
+};

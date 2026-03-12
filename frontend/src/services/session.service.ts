@@ -1,21 +1,22 @@
-import api from './api'
-import type { Session, CreateSessionData } from '../types'
+import api from "./api";
+import type { Session } from "../types";
 
-export const sessionService = {
-  getSessions: async (): Promise<Session[]> => {
-    const res = await api.get('/sessions')
-    return res.data
-  },
-  getSession: async (id: string): Promise<Session> => {
-    const res = await api.get(`/sessions/${id}`)
-    return res.data
-  },
-  createSession: async (data: CreateSessionData): Promise<Session> => {
-    const res = await api.post('/sessions', data)
-    return res.data
-  },
-  joinSession: async (sessionId: string): Promise<Session> => {
-    const res = await api.post(`/sessions/${sessionId}/join`)
-    return res.data
-  },
-}
+export const getSessions = async (): Promise<Session[]> => {
+  const { data } = await api.get<Session[]>("/sessions");
+  return data;
+};
+
+export const getSession = async (id: string): Promise<Session> => {
+  const { data } = await api.get<Session>(`/sessions/${id}`);
+  return data;
+};
+
+export const createSession = async (title: string, description: string): Promise<Session> => {
+  const { data } = await api.post<Session>("/sessions", { title, description });
+  return data;
+};
+
+export const joinSession = async (id: string): Promise<Session> => {
+  const { data } = await api.post<Session>(`/sessions/${id}/join`);
+  return data;
+};

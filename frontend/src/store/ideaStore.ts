@@ -1,24 +1,53 @@
-import { create } from 'zustand'
-import type { Idea } from '../types'
+import { create } from "zustand";
 
-interface IdeaState {
-  ideas: Idea[]
-  selectedIdea: Idea | null
-  setIdeas: (ideas: Idea[]) => void
-  setSelectedIdea: (idea: Idea | null) => void
-  addIdea: (idea: Idea) => void
-  updateIdea: (id: string, updated: Partial<Idea>) => void
-  removeIdea: (id: string) => void
+import type { Idea, IdeaNode } from "../types";
+
+interface IdeaStore {
+  ideaTree: IdeaNode[];
+  selectedIdea: Idea | null;
+  setIdeaTree: (ideaTree: IdeaNode[]) => void;
+  addIdea: (idea: Idea) => void;
+  updateIdea: (idea: Idea) => void;
+  setSelectedIdea: (idea: Idea | null) => void;
 }
 
-export const useIdeaStore = create<IdeaState>((set) => ({
-  ideas: [],
+const appendChild = (nodes: IdeaNode[], parentId: string, child: IdeaNode): boolean => {
+  for (const node of nodes) {
+    if (node.idea.id === parentId) {
+      node.children = [...node.children, child];
+      return true;
+    }
+    if (appendChild(node.children, parentId, child)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const replaceIdea = (nodes: IdeaNode[], idea: Idea): IdeaNode[] => {
+  return nodes.map((node) => ({
+    idea: node.idea.id === idea.id ? idea : node.idea,
+    children: replaceIdea(node.children, idea)
+  }));
+};
+
+export const useIdeaStore = create<IdeaStore>((set) => ({
+  ideaTree: [],
   selectedIdea: null,
-  setIdeas: (ideas) => set({ ideas }),
-  setSelectedIdea: (idea) => set({ selectedIdea: idea }),
-  addIdea: (idea) => set((s) => ({ ideas: [...s.ideas, idea] })),
-  updateIdea: (id, updated) =>
-    set((s) => ({ ideas: s.ideas.map((i) => (i._id === id ? { ...i, ...updated } : i)) })),
-  removeIdea: (id) =>
-    set((s) => ({ ideas: s.ideas.filter((i) => i._id !== id) })),
-}))
+  setIdeaTree: (ideaTree) => set({ ideaTree }),
+  addIdea: (idea) =>
+    set((state) => {
+      const node: IdeaNode = { idea, children: [] };
+      const tree = structuredClone(state.ideaTree);
+      if (!idea.parent_idea_id || !appendChild(tree, idea.parent_idea_id, node)) {
+        tree.push(node);
+      }
+      return { ideaTree: tree };
+    }),
+  updateIdea: (idea) =>
+    set((state) => ({
+      ideaTree: replaceIdea(state.ideaTree, idea),
+      selectedIdea: state.selectedIdea?.id === idea.id ? idea : state.selectedIdea
+    })),
+  setSelectedIdea: (selectedIdea) => set({ selectedIdea })
+}));

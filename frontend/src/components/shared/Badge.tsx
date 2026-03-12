@@ -1,18 +1,16 @@
-interface BadgeProps {
-  label: string
-  color?: 'gray' | 'indigo' | 'green' | 'red'
+import type { PropsWithChildren } from "react";
+
+interface Props extends PropsWithChildren {
+  tone?: "default" | "success" | "warning" | "danger";
 }
 
-export default function Badge({ label, color = 'gray' }: BadgeProps) {
-  const colors = {
-    gray: 'bg-gray-700 text-gray-300',
-    indigo: 'bg-indigo-900 text-indigo-300',
-    green: 'bg-green-900 text-green-300',
-    red: 'bg-red-900 text-red-300',
-  }
-  return (
-    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${colors[color]}`}>
-      {label}
-    </span>
-  )
-}
+const tones = {
+  default: "bg-ink/10 text-ink",
+  success: "bg-moss/15 text-moss",
+  warning: "bg-yellow-100 text-yellow-700",
+  danger: "bg-coral/15 text-coral"
+};
+
+export const Badge = ({ tone = "default", children }: Props) => {
+  return <span className={`rounded-full px-2 py-1 text-xs font-semibold ${tones[tone]}`}>{children}</span>;
+};

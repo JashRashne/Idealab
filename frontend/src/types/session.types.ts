@@ -1,15 +1,11 @@
-export interface Session {
-  _id: string
-  title: string
-  description?: string
-  owner_id: string
-  is_active: boolean
-  participants: string[]
-  created_at?: string
-  updated_at?: string
-}
+export type SessionStatus = "active" | "closed";
 
-export interface CreateSessionData {
-  title: string
-  description?: string
+export interface Session {
+  id: string;
+  title: string;
+  description: string;
+  owner_id: string;
+  participant_ids: string[];
+  status: SessionStatus;
+  created_at: string;
 }

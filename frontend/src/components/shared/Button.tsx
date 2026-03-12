@@ -1,20 +1,25 @@
-import { ButtonHTMLAttributes } from 'react'
+import type { ButtonHTMLAttributes, PropsWithChildren } from "react";
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger'
-  loading?: boolean
+type Variant = "primary" | "secondary" | "danger" | "ghost";
+
+interface Props extends ButtonHTMLAttributes<HTMLButtonElement>, PropsWithChildren {
+  variant?: Variant;
 }
 
-export default function Button({ variant = 'primary', loading, children, className = '', ...props }: ButtonProps) {
-  const base = 'px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50'
-  const variants = {
-    primary: 'bg-indigo-600 hover:bg-indigo-500 text-white',
-    secondary: 'border border-gray-700 hover:border-gray-500 text-white',
-    danger: 'bg-red-600 hover:bg-red-500 text-white',
-  }
+const styles: Record<Variant, string> = {
+  primary: "bg-ink text-sand hover:bg-black",
+  secondary: "bg-sky text-ink hover:bg-cyan-100",
+  danger: "bg-coral text-white hover:opacity-90",
+  ghost: "bg-transparent text-ink hover:bg-black/5"
+};
+
+export const Button = ({ variant = "primary", children, className = "", ...props }: Props) => {
   return (
-    <button className={`${base} ${variants[variant]} ${className}`} disabled={loading} {...props}>
-      {loading ? 'Loading…' : children}
+    <button
+      className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${styles[variant]} ${className}`}
+      {...props}
+    >
+      {children}
     </button>
-  )
-}
+  );
+};

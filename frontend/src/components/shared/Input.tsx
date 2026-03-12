@@ -1,19 +1,19 @@
-import { InputHTMLAttributes } from 'react'
+import type { InputHTMLAttributes } from "react";
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string
-  error?: string
+interface Props extends InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  error?: string;
 }
 
-export default function Input({ label, error, className = '', ...props }: InputProps) {
+export const Input = ({ label, error, className = "", ...props }: Props) => {
   return (
-    <div className="flex flex-col gap-1">
-      {label && <label className="text-sm text-gray-400">{label}</label>}
+    <label className="flex w-full flex-col gap-1 text-sm">
+      <span className="font-medium text-ink">{label}</span>
       <input
-        className={`w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 ${className}`}
+        className={`rounded-lg border border-black/20 bg-white px-3 py-2 outline-none ring-coral/50 focus:ring ${className}`}
         {...props}
       />
-      {error && <p className="text-xs text-red-400">{error}</p>}
-    </div>
-  )
-}
+      {error ? <span className="text-xs text-coral">{error}</span> : null}
+    </label>
+  );
+};

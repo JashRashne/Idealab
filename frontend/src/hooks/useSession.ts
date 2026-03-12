@@ -1,26 +1,37 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { sessionService } from '../services/session.service'
-import type { CreateSessionData } from '../types'
+import { useEffect, useMemo, useState } from "react";
 
-export function useSessions() {
-  return useQuery({
-    queryKey: ['sessions'],
-    queryFn: sessionService.getSessions,
-  })
-}
+import { getSession, joinSession } from "../services/session.service";
+import { useSessionStore } from "../store/sessionStore";
+import type { Session } from "../types";
 
-export function useSession(id: string) {
-  return useQuery({
-    queryKey: ['session', id],
-    queryFn: () => sessionService.getSession(id),
-    enabled: !!id,
-  })
-}
+export const useSession = (sessionId: string, userId: string) => {
+  const currentSession = useSessionStore((s) => s.currentSession);
+  const setCurrentSession = useSessionStore((s) => s.setCurrentSession);
 
-export function useCreateSession() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (data: CreateSessionData) => sessionService.createSession(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sessions'] }),
-  })
-}
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const session = await getSession(sessionId);
+        let finalSession: Session = session;
+        if (!session.participant_ids.includes(userId)) {
+          finalSession = await joinSession(sessionId);
+        }
+        setCurrentSession(finalSession);
+        setError(null);
+      } catch {
+        setError("Failed to load session");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
+  }, [sessionId, userId, setCurrentSession]);
+
+  const participants = useMemo(() => currentSession?.participant_ids ?? [], [currentSession]);
+  return { session: currentSession, participants, loading, error };
+};

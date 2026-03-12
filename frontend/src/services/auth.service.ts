@@ -1,17 +1,21 @@
-import api from './api'
-import type { LoginCredentials, RegisterData, AuthTokens, User } from '../types'
+import api from "./api";
+import type { User } from "../types";
 
-export const authService = {
-  register: async (data: RegisterData): Promise<User> => {
-    const res = await api.post('/auth/register', data)
-    return res.data
-  },
-  login: async (credentials: LoginCredentials): Promise<AuthTokens> => {
-    const res = await api.post('/auth/login', credentials)
-    return res.data
-  },
-  getMe: async (): Promise<User> => {
-    const res = await api.get('/auth/me')
-    return res.data
-  },
-}
+export const register = async (username: string, email: string, password: string): Promise<User> => {
+  const { data } = await api.post<User>("/auth/register", { username, email, password });
+  return data;
+};
+
+export const login = async (email: string, password: string): Promise<User> => {
+  const { data } = await api.post<User>("/auth/login", { email, password });
+  return data;
+};
+
+export const logout = async (): Promise<void> => {
+  await api.post("/auth/logout");
+};
+
+export const getMe = async (): Promise<User> => {
+  const { data } = await api.get<User>("/auth/me");
+  return data;
+};

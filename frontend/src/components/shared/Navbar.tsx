@@ -1,24 +1,26 @@
-import { Link } from 'react-router-dom'
-import { useAuthStore } from '../../store/authStore'
+import { logout } from "../../services/auth.service";
+import { useAuthStore } from "../../store/authStore";
+import { Button } from "./Button";
 
-export default function Navbar() {
-  const { user, isAuthenticated, logout } = useAuthStore()
+export const Navbar = () => {
+  const user = useAuthStore((s) => s.user);
+  const clearUser = useAuthStore((s) => s.clearUser);
+
+  const handleLogout = async () => {
+    await logout();
+    clearUser();
+    window.location.href = "/login";
+  };
+
   return (
-    <nav className="h-14 border-b border-gray-800 bg-gray-950 flex items-center justify-between px-6">
-      <Link to="/" className="font-bold text-white tracking-tight">Augenblick</Link>
-      <div className="flex items-center gap-4 text-sm">
-        {isAuthenticated ? (
-          <>
-            <span className="text-gray-400">{user?.username}</span>
-            <button onClick={logout} className="text-gray-400 hover:text-white transition-colors">Sign out</button>
-          </>
-        ) : (
-          <>
-            <Link to="/login" className="text-gray-400 hover:text-white">Sign in</Link>
-            <Link to="/register" className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white">Sign up</Link>
-          </>
-        )}
+    <header className="flex items-center justify-between border-b border-black/10 bg-white/80 px-6 py-3 backdrop-blur">
+      <h1 className="font-display text-xl font-bold text-ink">IdeaLab</h1>
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-ink/70">{user?.username}</span>
+        <Button variant="ghost" onClick={handleLogout}>
+          Logout
+        </Button>
       </div>
-    </nav>
-  )
-}
+    </header>
+  );
+};
