@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from fastapi import WebSocket
 
@@ -8,10 +8,15 @@ class ConnectionManager:
     def __init__(self):
         # session_id -> list of active websocket connections
         self.connections: Dict[str, List[WebSocket]] = {}
+        # id(websocket) -> user_id
+        self.ws_user: Dict[int, str] = {}
 
-    async def connect(self, websocket: WebSocket, session_id: str) -> None:
+    async def connect(
+        self, websocket: WebSocket, session_id: str, user_id: str
+    ) -> None:
         await websocket.accept()
         self.connections.setdefault(session_id, []).append(websocket)
+        self.ws_user[id(websocket)] = user_id
 
     def disconnect(self, websocket: WebSocket, session_id: str) -> None:
         conns = self.connections.get(session_id, [])
@@ -19,12 +24,31 @@ class ConnectionManager:
             conns.remove(websocket)
         if not conns:
             self.connections.pop(session_id, None)
+        self.ws_user.pop(id(websocket), None)
 
-    async def broadcast(self, session_id: str, message: dict) -> None:
+    def get_online_user_ids(self, session_id: str) -> List[str]:
+        conns = self.connections.get(session_id, [])
+        seen: set = set()
+        users: List[str] = []
+        for ws in conns:
+            uid = self.ws_user.get(id(ws))
+            if uid and uid not in seen:
+                users.append(uid)
+                seen.add(uid)
+        return users
+
+    async def broadcast(
+        self,
+        session_id: str,
+        message: dict,
+        exclude_user_id: Optional[str] = None,
+    ) -> None:
         conns = self.connections.get(session_id, [])
         dead: List[WebSocket] = []
         payload = json.dumps(message, default=str)
         for ws in conns:
+            if exclude_user_id and self.ws_user.get(id(ws)) == exclude_user_id:
+                continue
             try:
                 await ws.send_text(payload)
             except Exception:

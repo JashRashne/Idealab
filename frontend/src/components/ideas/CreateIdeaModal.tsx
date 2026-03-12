@@ -79,19 +79,6 @@ export const CreateIdeaModal = ({ open, onClose, sessionId, ideaTree, onSubmit, 
       };
 
       await onSubmit(payload);
-
-      // MOCK MODE: also add directly to store for UI dev
-      useIdeaStore.getState().addIdea({
-        ...payload,
-        id:         Math.random().toString(36).substr(2, 9),
-        status:     "active",
-        created_by: "mock-user",
-        votes:      [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-
-      sendMessage({ type: "new_idea", payload: payload as unknown as Record<string, unknown> });
       reset();
       onClose();
     } catch {

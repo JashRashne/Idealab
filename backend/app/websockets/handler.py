@@ -7,36 +7,81 @@ from app.websockets.events import WSEventType
 from app.websockets.manager import manager
 
 
-async def websocket_endpoint(websocket: WebSocket, session_id: str, token: str) -> None:
+async def websocket_endpoint(
+    websocket: WebSocket, session_id: str, token: str
+) -> None:
     payload = decode_token(token)
-    if not payload:
+    if not payload or payload.get("type") != "access":
         await websocket.close(code=4001, reason="Unauthorized")
         return
 
     user_id: str = payload.get("sub")
-    await manager.connect(websocket, session_id)
-    await manager.broadcast(session_id, {
-        "type": WSEventType.JOIN,
-        "user_id": user_id,
-        "participants": manager.get_participant_count(session_id),
-    })
+    await manager.connect(websocket, session_id, user_id)
+
+    # Notify everyone (including the joining user) about the updated participant list
+    online = manager.get_online_user_ids(session_id)
+    await manager.broadcast(
+        session_id,
+        {"type": WSEventType.USER_JOINED, "payload": {"participant_ids": online}},
+    )
 
     try:
         while True:
-            data = await websocket.receive_text()
+            raw = await websocket.receive_text()
             try:
-                message = json.loads(data)
-                if message.get("type") == WSEventType.PING:
-                    await manager.send_personal(websocket, {"type": WSEventType.PONG})
-                else:
-                    message["user_id"] = user_id
-                    await manager.broadcast(session_id, message)
+                message = json.loads(raw)
             except json.JSONDecodeError:
-                await manager.send_personal(websocket, {"type": WSEventType.ERROR, "detail": "Invalid JSON"})
+                await manager.send_personal(
+                    websocket,
+                    {"type": WSEventType.ERROR, "payload": {"detail": "Invalid JSON"}},
+                )
+                continue
+
+            msg_type = message.get("type")
+
+            if msg_type == WSEventType.PING:
+                await manager.send_personal(
+                    websocket, {"type": WSEventType.PONG, "payload": {}}
+                )
+
+            elif msg_type == WSEventType.JOIN_SESSION:
+                # Re-send current participant list to the requesting client
+                online = manager.get_online_user_ids(session_id)
+                await manager.send_personal(
+                    websocket,
+                    {
+                        "type": WSEventType.USER_JOINED,
+                        "payload": {"participant_ids": online},
+                    },
+                )
+
+            elif msg_type == WSEventType.CURSOR_MOVE:
+                payload = message.get("payload", {})
+                x = float(payload.get("x", 0))
+                y = float(payload.get("y", 0))
+                username = str(payload.get("username", ""))
+                await manager.broadcast(
+                    session_id,
+                    {
+                        "type": WSEventType.CURSOR_MOVED,
+                        "payload": {
+                            "user_id": user_id,
+                            "username": username,
+                            "x": x,
+                            "y": y,
+                        },
+                    },
+                    exclude_user_id=user_id,
+                )
+
+            # new_idea / vote / comment are all handled server-side via HTTP routes.
+            # Those routes call manager.broadcast() with the authoritative event,
+            # so we don't need to re-broadcast client messages here.
+
     except WebSocketDisconnect:
         manager.disconnect(websocket, session_id)
-        await manager.broadcast(session_id, {
-            "type": WSEventType.LEAVE,
-            "user_id": user_id,
-            "participants": manager.get_participant_count(session_id),
-        })
+        online = manager.get_online_user_ids(session_id)
+        await manager.broadcast(
+            session_id,
+            {"type": WSEventType.USER_LEFT, "payload": {"participant_ids": online}},
+        )

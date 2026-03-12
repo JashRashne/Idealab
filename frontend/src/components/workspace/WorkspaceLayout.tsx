@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { IdeaBranchGraph } from "../ideas/IdeaBranchGraph";
 import { IdeaDetailPanel } from "../ideas/IdeaDetailPanel";
@@ -9,6 +9,7 @@ import { FinalDocument } from "./FinalDocument";
 import { PadViewerModal } from "./PadViewerModel";
 import { useIdeaStore } from "../../store/ideaStore";
 import { flattenTree } from "../../services/idea.service";
+import api from "../../services/api";
 import type { WSMessage } from "../../types";
 
 interface Props {
@@ -81,6 +82,15 @@ export const WorkspaceLayout = ({
   const [activeTab,      setActiveTab]      = useState<Tab>("workspace");
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [viewingPad,     setViewingPad]     = useState<{ userId: string; username: string } | null>(null);
+  const [sessionParticipants, setSessionParticipants] = useState<{ id: string; username: string }[]>(MOCK_PARTICIPANTS);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    api
+      .get<{ id: string; username: string }[]>(`/sessions/${sessionId}/participants`)
+      .then(({ data }) => { if (data.length > 0) setSessionParticipants(data); })
+      .catch(() => {});
+  }, [sessionId]);
 
   const ideaTree = useIdeaStore((s) => s.ideaTree);
 
@@ -113,9 +123,9 @@ export const WorkspaceLayout = ({
     [finalDocIdeas]
   );
 
-  const getMockPadContent = (userId: string, username: string) => ({
-    userId, username,
-    content: `<h2>Initial Thoughts</h2><p>Some early brainstorm notes from ${username}.</p>`,
+  const getMockPadContent = (_userId: string, _username: string) => ({
+    userId: _userId, username: _username,
+    content: "",
     lastUpdated: new Date(),
   });
 
@@ -275,13 +285,11 @@ export const WorkspaceLayout = ({
               <BrainstormPad
                 currentUserId={currentUserId}
                 currentUsername={currentUsername}
-                sessionParticipants={MOCK_PARTICIPANTS}
-                onPushToWorkspace={(text) => {
-                  console.log("Push to workspace:", text);
-                  setActiveTab("workspace");
-                }}
+                sessionParticipants={sessionParticipants}
                 onViewPad={(userId, username) => setViewingPad({ userId, username })}
                 isOwner={isOwner}
+                sessionId={sessionId}
+                sendMessage={sendMessage}
               />
             </div>
           )}
@@ -324,7 +332,9 @@ export const WorkspaceLayout = ({
 
       <PadViewerModal
         open={viewingPad !== null}
-        pad={viewingPad ? getMockPadContent(viewingPad.userId, viewingPad.username) : null}
+        userId={viewingPad?.userId ?? null}
+        username={viewingPad?.username ?? null}
+        sessionId={sessionId}
         onClose={() => setViewingPad(null)}
       />
     </>

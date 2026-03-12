@@ -24,7 +24,7 @@ class AuthService:
         user = await self.repo.get_by_email(credentials.email)
         if not user or not verify_password(credentials.password, user["hashed_password"]):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
-        token_data = {"sub": user["_id"]}
+        token_data = {"sub": user["id"]}
         return TokenResponse(
             access_token=create_access_token(token_data),
             refresh_token=create_refresh_token(token_data),

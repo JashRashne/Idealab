@@ -20,7 +20,7 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase, TimestampedModel):
     model_config = ConfigDict(populate_by_name=True)
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -31,6 +31,6 @@ class TokenResponse(BaseModel):
 
 class UserInDB(UserBase, TimestampedModel):
     model_config = ConfigDict(populate_by_name=True)
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     hashed_password: str
     is_active: bool = True

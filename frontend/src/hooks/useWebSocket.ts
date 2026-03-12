@@ -41,7 +41,7 @@ export const useWebSocket = (sessionId: string, userId: string) => {
 
     let mounted = true;
     const wsBase = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
-    const token = window.sessionStorage.getItem("wsToken") ?? "";
+    const token = localStorage.getItem("access_token") ?? "";
 
     const connect = () => {
       if (!mounted) {
@@ -83,6 +83,14 @@ export const useWebSocket = (sessionId: string, userId: string) => {
 
         if (parsed.type === "comment_added") {
           window.dispatchEvent(new CustomEvent("idealab:comment-added"));
+        }
+
+        if (parsed.type === "pad_updated") {
+          window.dispatchEvent(new CustomEvent("idealab:pad-updated", { detail: payload }));
+        }
+
+        if (parsed.type === "cursor_moved") {
+          window.dispatchEvent(new CustomEvent("idealab:cursor-moved", { detail: payload }));
         }
 
         if (parsed.type === "user_joined" || parsed.type === "user_left") {

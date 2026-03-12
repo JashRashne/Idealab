@@ -31,7 +31,7 @@ class SessionUpdate(BaseModel):
 class SessionInDB(SessionBase, TimestampedModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     owner_id: str
     participant_ids: List[str] = []
     status: SessionStatus = SessionStatus.ACTIVE

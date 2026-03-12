@@ -8,6 +8,11 @@ export type WSEventType =
   | "comment_added"
   | "user_joined"
   | "user_left"
+  | "pad_updated"
+  | "cursor_move"
+  | "cursor_moved"
+  | "ping"
+  | "pong"
   | "error";
 
 export interface WSMessage {

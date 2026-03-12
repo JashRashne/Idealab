@@ -1,28 +1,16 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
-interface PadEntry {
-  id: string;
-  text: string;
-  timestamp: Date;
-  pushed: boolean;
-}
+import api from "../../services/api";
+import type { WSMessage } from "../../types";
 
 interface Props {
   currentUserId: string;
   currentUsername: string;
   sessionParticipants: { id: string; username: string }[];
-  onPushToWorkspace: (text: string) => void;
   onViewPad: (userId: string, username: string) => void;
   isOwner?: boolean;
-}
-
-function PushIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="7" y1="11" x2="7" y2="1" />
-      <polyline points="2 5 7 1 12 5" />
-    </svg>
-  );
+  sessionId: string;
+  sendMessage: (message: WSMessage) => void;
 }
 
 function EyeIcon() {
@@ -30,15 +18,6 @@ function EyeIcon() {
     <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
       <path d="M1 7s2.5-4 6-4 6 4 6 4-2.5 4-6 4-6-4-6-4z" />
       <circle cx="7" cy="7" r="1.5" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <polyline points="2 4 12 4" />
-      <path d="M5 4V2h4v2M4 4l.5 8h5l.5-8" />
     </svg>
   );
 }
@@ -58,55 +37,67 @@ export const BrainstormPad = ({
   currentUserId,
   currentUsername,
   sessionParticipants,
-  onPushToWorkspace,
   onViewPad,
-  isOwner = false,
+  sessionId,
+  sendMessage,
 }: Props) => {
-  const editorRef   = useRef<HTMLDivElement>(null);
-  const [entries, setEntries]         = useState<PadEntry[]>([]);
-  const [pushDraft, setPushDraft]     = useState("");
-  const [charCount, setCharCount]     = useState(0);
-  const [confirmPush, setConfirmPush] = useState(false);
-  const [pushSuccess, setPushSuccess] = useState(false);
+  const editorRef      = useRef<HTMLDivElement>(null);
+  const saveTimerRef   = useRef<number | null>(null);
+  const cursorTimerRef = useRef<number | null>(null);
+  const [charCount, setCharCount] = useState(0);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
   const others = sessionParticipants.filter((p) => p.id !== currentUserId);
+
+  // Load saved pad content on mount
+  useEffect(() => {
+    api
+      .get<{ content: string }>(`/pads/${sessionId}/${currentUserId}`)
+      .then(({ data }) => {
+        if (editorRef.current && data.content) {
+          editorRef.current.innerHTML = data.content;
+          setCharCount(editorRef.current.innerText.trim().length);
+        }
+      })
+      .catch(() => {});
+  }, [sessionId, currentUserId]);
 
   const execCmd = (cmd: string, arg?: string) => {
     document.execCommand(cmd, false, arg);
     editorRef.current?.focus();
   };
 
+  const debouncedSave = useCallback(() => {
+    if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    setSaveState("saving");
+    saveTimerRef.current = window.setTimeout(() => {
+      const content = editorRef.current?.innerHTML ?? "";
+      api
+        .put(`/pads/${sessionId}`, { content })
+        .then(() => {
+          setSaveState("saved");
+          window.setTimeout(() => setSaveState("idle"), 1500);
+        })
+        .catch(() => { setSaveState("idle"); });
+    }, 800);
+  }, [sessionId]);
+
   const handleEditorInput = useCallback(() => {
     const text = editorRef.current?.innerText ?? "";
-    setCharCount(text.length);
-    setPushDraft(editorRef.current?.innerHTML ?? "");
-  }, []);
+    setCharCount(text.trim().length);
+    debouncedSave();
+  }, [debouncedSave]);
 
-  const handlePush = () => {
-    const plain = editorRef.current?.innerText?.trim() ?? "";
-    if (!plain) return;
-    setConfirmPush(true);
-  };
-
-  const confirmAndPush = () => {
-    const plain = editorRef.current?.innerText?.trim() ?? "";
-    if (!plain) return;
-
-    const entry: PadEntry = {
-      id: `${Date.now()}`,
-      text: plain,
-      timestamp: new Date(),
-      pushed: true,
-    };
-    setEntries((p) => [entry, ...p]);
-    onPushToWorkspace(plain);
-    if (editorRef.current) editorRef.current.innerHTML = "";
-    setCharCount(0);
-    setPushDraft("");
-    setConfirmPush(false);
-    setPushSuccess(true);
-    setTimeout(() => setPushSuccess(false), 2500);
-  };
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (cursorTimerRef.current !== null) return;
+      const x = e.clientX / window.innerWidth;
+      const y = e.clientY / window.innerHeight;
+      sendMessage({ type: "cursor_move", payload: { x, y, username: currentUsername } });
+      cursorTimerRef.current = window.setTimeout(() => { cursorTimerRef.current = null; }, 50);
+    },
+    [sendMessage, currentUsername],
+  );
 
   return (
     <>
@@ -123,14 +114,14 @@ export const BrainstormPad = ({
         .pad-editor ul { list-style: disc; padding-left: 20px; margin: 4px 0; }
         .pad-editor ol { list-style: decimal; padding-left: 20px; margin: 4px 0; }
         .pad-editor li { margin: 2px 0; }
-        @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
-        .push-success { animation: slideIn 0.3s ease forwards; }
       `}</style>
 
       <div className="flex h-full overflow-hidden" style={{ background: "#f5f5f0" }}>
 
         {/* ── MAIN PAD AREA ── */}
-        <div className="flex flex-col flex-1 overflow-hidden" style={{ borderRight: "1.5px solid #13131A" }}>
+        <div className="flex flex-col flex-1 overflow-hidden" style={{ borderRight: "1.5px solid #13131A" }}
+          onMouseMove={handleMouseMove}
+        >
 
           {/* Pad header */}
           <div
@@ -154,19 +145,15 @@ export const BrainstormPad = ({
               </div>
             </div>
 
-            {/* Push to workspace btn */}
-            <button
-              onClick={handlePush}
-              disabled={charCount === 0}
-              className="font-display font-bold uppercase text-white flex items-center hover:bg-[#0a0a0a] hover:border-[#0a0a0a] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                fontSize: 11, letterSpacing: "0.08em", padding: "7px 16px",
-                background: "#3a5bff", border: "1.5px solid #3a5bff",
-                borderRadius: 4, gap: 7, cursor: charCount === 0 ? "not-allowed" : "pointer",
-              }}
-            >
-              <PushIcon /> Push to Workspace
-            </button>
+            {/* Auto-save indicator */}
+            <div className="flex items-center" style={{ gap: 6 }}>
+              {saveState === "saving" && (
+                <span className="font-body text-[#bbb]" style={{ fontSize: 10 }}>Saving…</span>
+              )}
+              {saveState === "saved" && (
+                <span className="font-body text-[#27c93f]" style={{ fontSize: 10 }}>✓ Saved</span>
+              )}
+            </div>
           </div>
 
           {/* Toolbar */}
@@ -214,33 +201,13 @@ export const BrainstormPad = ({
             />
           </div>
 
-          {/* Bottom bar: char count + push history */}
-          {entries.length > 0 && (
-            <div
-              className="flex-shrink-0 overflow-y-auto"
-              style={{ maxHeight: 180, borderTop: "1.5px solid #13131A", background: "#f5f5f0" }}
-            >
-              <div style={{ padding: "10px 20px 6px" }}>
-                <p className="font-body text-[#888] uppercase" style={{ fontSize: 9, letterSpacing: "0.15em", marginBottom: 8 }}>
-                  Pushed to workspace ({entries.length})
-                </p>
-                {entries.map((e) => (
-                  <div
-                    key={e.id}
-                    className="flex items-start justify-between"
-                    style={{ padding: "6px 0", borderBottom: "1px solid #e5e5e0", gap: 12 }}
-                  >
-                    <p className="font-body text-[#555] flex-1 truncate" style={{ fontSize: 12 }}>
-                      ✓ {e.text.slice(0, 80)}{e.text.length > 80 ? "…" : ""}
-                    </p>
-                    <span className="font-body text-[#aaa] flex-shrink-0" style={{ fontSize: 10 }}>
-                      {e.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Bottom bar: char count */}
+          <div
+            className="flex items-center justify-between flex-shrink-0"
+            style={{ padding: "6px 20px", borderTop: "1.5px solid #e5e5e0", background: "#f5f5f0" }}
+          >
+            <span className="font-body text-[#bbb]" style={{ fontSize: 10 }}>{charCount} chars</span>
+          </div>
         </div>
 
         {/* ── SIDEBAR: Other participants' pads ── */}
@@ -253,7 +220,7 @@ export const BrainstormPad = ({
               Teammates' Pads
             </p>
             <p className="font-body text-[#bbb]" style={{ fontSize: 10, lineHeight: 1.5 }}>
-              View others' brainstorm notes (read-only)
+              View others' live brainstorm notes
             </p>
           </div>
 
@@ -280,74 +247,15 @@ export const BrainstormPad = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-display font-bold truncate" style={{ fontSize: 12 }}>{p.username}</p>
-                    <p className="font-body text-[#aaa]" style={{ fontSize: 10, marginTop: 1 }}>View pad →</p>
+                    <p className="font-body text-[#aaa]" style={{ fontSize: 10, marginTop: 1 }}>View live →</p>
                   </div>
                   <EyeIcon />
                 </button>
               ))
             )}
           </div>
-
-          {/* Success toast */}
-          {pushSuccess && (
-            <div
-              className="push-success flex items-center flex-shrink-0"
-              style={{ padding: "10px 16px", background: "rgba(39,201,63,0.1)", borderTop: "1.5px solid rgba(39,201,63,0.3)", gap: 8 }}
-            >
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#27c93f", flexShrink: 0 }} />
-              <span className="font-body" style={{ fontSize: 11, color: "#27c93f" }}>Pushed to workspace!</span>
-            </div>
-          )}
         </div>
       </div>
-
-      {/* ── PUSH CONFIRM OVERLAY ── */}
-      {confirmPush && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ background: "rgba(10,10,10,0.6)" }}
-          onClick={() => setConfirmPush(false)}
-        >
-          <div
-            className="flex flex-col"
-            style={{ background: "#f5f5f0", border: "1.5px solid #13131A", borderRadius: 4, padding: 32, maxWidth: 380, width: "100%", margin: 24 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ marginBottom: 20 }}>
-              <p className="font-body text-[#3a5bff] uppercase" style={{ fontSize: 10, letterSpacing: "0.2em", marginBottom: 8 }}>Confirm push</p>
-              <h3 className="font-display font-extrabold" style={{ fontSize: 22, letterSpacing: "-0.02em", lineHeight: 1, marginBottom: 8 }}>
-                Push to workspace?
-              </h3>
-              <p className="font-body text-[#888]" style={{ fontSize: 13, lineHeight: 1.7 }}>
-                This will add your brainstorm note as a new idea in the shared workspace. Everyone in the session will see it.
-              </p>
-            </div>
-            <div
-              style={{ padding: 16, border: "1.5px solid #e5e5e0", borderRadius: 4, background: "#fff", marginBottom: 20 }}
-            >
-              <p className="font-body text-[#555]" style={{ fontSize: 13, lineHeight: 1.7 }}>
-                "{editorRef.current?.innerText?.trim().slice(0, 120)}{(editorRef.current?.innerText?.trim().length ?? 0) > 120 ? "…" : ""}"
-              </p>
-            </div>
-            <div className="flex items-center" style={{ gap: 12 }}>
-              <button
-                onClick={() => setConfirmPush(false)}
-                className="font-body text-[#888] hover:text-ink transition-colors"
-                style={{ fontSize: 13, background: "none", border: "none", cursor: "pointer", padding: "8px 0" }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmAndPush}
-                className="font-display font-bold uppercase text-white hover:bg-[#0a0a0a] transition-all duration-150 flex items-center"
-                style={{ fontSize: 12, letterSpacing: "0.08em", padding: "10px 24px", background: "#3a5bff", border: "1.5px solid #3a5bff", borderRadius: 4, gap: 8 }}
-              >
-                <PushIcon /> Confirm Push
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

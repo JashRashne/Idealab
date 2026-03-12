@@ -26,3 +26,10 @@ async def login(credentials: UserLogin, service: AuthService = Depends(get_auth_
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/logout")
+async def logout(_: dict = Depends(get_current_user)):
+    # JWT is stateless — the client removes the token.
+    # This endpoint exists so the frontend can await a clean logout.
+    return {"message": "Logged out successfully"}

@@ -1,25 +1,35 @@
-import { WorkspaceLayout } from "../components/workspace/WorkspaceLayout";
-import { mockSession } from "../mocks/mockSession";
-import { mockIdeaTree } from "../mocks/mockIdeas";
+import { Navigate, useParams } from "react-router-dom";
 
-// MOCK UI ONLY: Use mock data for UI development
+import { WorkspaceLayout } from "../components/workspace/WorkspaceLayout";
+import { useIdeas } from "../hooks/useIdeas";
+import { useSession } from "../hooks/useSession";
+import { useWebSocket } from "../hooks/useWebSocket";
+import { useAuthStore } from "../store/authStore";
+import { useSessionStore } from "../store/sessionStore";
+
 export const WorkspacePage = () => {
-  const session              = mockSession;
-  const ideaTree             = mockIdeaTree;
-  const participants         = session.participant_ids;
-  const onlineParticipantIds = session.participant_ids;
-  const connectionStatus     = "connected";
-  const sendMessage          = () => {};
+  const { id: sessionId = "" } = useParams<{ id: string }>();
+
+  const user = useAuthStore((s) => s.user);
+  const onlineParticipantIds = useSessionStore((s) => s.onlineParticipantIds);
+
+  const { session, participants } = useSession(sessionId, user?.id ?? "");
+  useIdeas(sessionId);
+  const { connectionStatus, sendMessage } = useWebSocket(sessionId, user?.id ?? "");
+
+  if (!sessionId || !user || !session) return null;
 
   return (
     <WorkspaceLayout
-      sessionId={session.id}
+      sessionId={sessionId}
       sessionTitle={session.title}
       participants={participants}
       onlineParticipantIds={onlineParticipantIds}
       connectionStatus={connectionStatus}
       sendMessage={sendMessage}
-      ideaTree={ideaTree}
+      isOwner={session.owner_id === user.id}
+      currentUserId={user.id}
+      currentUsername={user.username}
     />
   );
 };

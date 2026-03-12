@@ -1,13 +1,6 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field, ConfigDict
-from datetime import datetime
+from pydantic import BaseModel, ConfigDict
 from app.models.common import TimestampedModel, IdeaStatus
-from app.models.user import UserResponse  # real import, not TYPE_CHECKING
-
-
-class VoteRecord(BaseModel):
-    user_id: str
-    voted_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class IdeaBase(BaseModel):
@@ -19,7 +12,7 @@ class IdeaBase(BaseModel):
 
 class IdeaCreate(IdeaBase):
     session_id: str
-    parent_id: Optional[str] = None
+    parent_idea_id: Optional[str] = None
 
 
 class IdeaUpdate(BaseModel):
@@ -33,36 +26,28 @@ class IdeaUpdate(BaseModel):
 class IdeaInDB(IdeaBase, TimestampedModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     session_id: str
-    parent_id: Optional[str] = None
-    author_id: str
+    parent_idea_id: Optional[str] = None
+    created_by: str
     status: IdeaStatus = IdeaStatus.ACTIVE
-    votes: List[VoteRecord] = []
-    vote_count: int = 0
-    children_count: int = 0
-    is_ai_generated: bool = False
+    votes: List[str] = []  # list of user_id strings
 
 
 class IdeaResponse(IdeaBase, TimestampedModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    id: Optional[str] = Field(None, alias="_id")
+    id: Optional[str] = None
     session_id: str
-    parent_id: Optional[str] = None
-    author_id: str
+    parent_idea_id: Optional[str] = None
+    created_by: str
     status: IdeaStatus = IdeaStatus.ACTIVE
-    votes: List[VoteRecord] = []
-    vote_count: int = 0
-    children_count: int = 0
-    is_ai_generated: bool = False
-    has_voted: bool = False
-    author: Optional[UserResponse] = None  # no quotes needed, real import
+    votes: List[str] = []  # list of user_id strings
 
 
 class IdeaNode(BaseModel):
     idea: IdeaResponse
-    children: List["IdeaNode"] = []        # quotes only for self-reference
+    children: List["IdeaNode"] = []
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

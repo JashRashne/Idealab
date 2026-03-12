@@ -16,6 +16,14 @@ interface IdeaStore {
 }
 
 // ─── Tree helpers ─────────────────────────────────────────────────────────────
+const findInTree = (nodes: IdeaNode[], id: string): boolean => {
+  for (const node of nodes) {
+    if (node.idea.id === id) return true;
+    if (findInTree(node.children, id)) return true;
+  }
+  return false;
+};
+
 const appendChild = (nodes: IdeaNode[], parentId: string, child: IdeaNode): boolean => {
   for (const node of nodes) {
     if (node.idea.id === parentId) {
@@ -46,6 +54,7 @@ export const useIdeaStore = create<IdeaStore>()(
 
       addIdea: (idea) =>
         set((state) => {
+          if (findInTree(state.ideaTree, idea.id)) return state; // dedup
           const node: IdeaNode = { idea, children: [] };
           const tree = structuredClone(state.ideaTree);
           if (!idea.parent_idea_id || !appendChild(tree, idea.parent_idea_id, node)) {

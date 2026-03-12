@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from app.core.dependencies import get_current_user
 from app.db.client import get_database
 from app.db.repositories.session_repository import SessionRepository
+from app.db.repositories.user_repository import UserRepository
 from app.models.session import SessionCreate, SessionResponse
 from app.services.session_service import SessionService
 
@@ -20,19 +21,25 @@ async def create_session(
     service: SessionService = Depends(get_session_service),
     current_user: dict = Depends(get_current_user),
 ):
-    return await service.create_session(session_data, current_user["_id"])
+    return await service.create_session(session_data, current_user["id"])
 
 
 @router.get("/", response_model=List[SessionResponse])
 async def list_sessions(
     include_closed: bool = True,
     service: SessionService = Depends(get_session_service),
+    current_user: dict = Depends(get_current_user),
 ):
-    return await service.get_sessions(include_closed=include_closed)
+    # Returns only sessions where the logged-in user is a participant/owner
+    return await service.get_user_sessions(
+        current_user["id"], include_closed=include_closed
+    )
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
-async def get_session(session_id: str, service: SessionService = Depends(get_session_service)):
+async def get_session(
+    session_id: str, service: SessionService = Depends(get_session_service)
+):
     return await service.get_session(session_id)
 
 
@@ -42,7 +49,7 @@ async def join_session(
     service: SessionService = Depends(get_session_service),
     current_user: dict = Depends(get_current_user),
 ):
-    return await service.join_session(session_id, current_user["_id"])
+    return await service.join_session(session_id, current_user["id"])
 
 
 @router.post("/{session_id}/end", response_model=SessionResponse)
@@ -51,4 +58,16 @@ async def end_session(
     service: SessionService = Depends(get_session_service),
     current_user: dict = Depends(get_current_user),
 ):
-    return await service.end_session(session_id, current_user["_id"])
+    return await service.end_session(session_id, current_user["id"])
+
+
+@router.get("/{session_id}/participants")
+async def get_session_participants(
+    session_id: str,
+    service: SessionService = Depends(get_session_service),
+    db=Depends(get_database),
+):
+    session = await service.get_session(session_id)
+    participant_ids = session.get("participant_ids") or []
+    users = await UserRepository(db).get_by_ids(participant_ids)
+    return [{"id": u["id"], "username": u["username"]} for u in users if u]

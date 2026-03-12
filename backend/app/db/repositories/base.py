@@ -14,8 +14,11 @@ class BaseRepository:
 
     @staticmethod
     def _serialize(doc: Optional[dict]) -> Optional[dict]:
-        if doc and "_id" in doc:
-            doc["_id"] = str(doc["_id"])
+        if doc is None:
+            return None
+        if "_id" in doc:
+            doc["id"] = str(doc["_id"])
+            del doc["_id"]
         return doc
 
     async def get_by_id(self, id: str) -> Optional[dict]:

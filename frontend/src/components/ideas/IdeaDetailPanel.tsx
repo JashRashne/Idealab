@@ -18,7 +18,7 @@ const STATUS_CONFIG: Record<IdeaStatus, { color: string; bg: string; border: str
   archived:    { color: "#888",    bg: "rgba(136,136,136,0.06)",border: "#ddd",                 label: "Archived"    },
 };
 
-const STATUS_OPTIONS: IdeaStatus[] = ["active", "shortlisted", "merged", "archived"];
+const STATUS_OPTIONS: IdeaStatus[] = ["active", "shortlisted", "archived"];
 
 function VoteIcon() {
   return (
