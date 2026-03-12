@@ -18,7 +18,7 @@ export const SessionCard = ({ session, isParticipant, onJoin }: Props) => {
         <Badge tone={session.status === "active" ? "success" : "warning"}>{session.status}</Badge>
       </div>
       <p className="mb-3 text-sm text-ink/70">{session.description || "No description provided."}</p>
-      <p className="mb-4 text-xs text-ink/60">Participants: {session.participant_ids.length}</p>
+      <p className="mb-4 text-xs text-ink/60">Participants: {(session.participant_ids ?? []).length}</p>
       {isParticipant ? (
         <Link to={`/sessions/${session.id}`}>
           <Button variant="primary">Open</Button>

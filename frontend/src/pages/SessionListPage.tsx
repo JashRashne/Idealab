@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { CreateSessionModal } from "../components/session/CreateSessionModal";
 import { SessionCard } from "../components/session/SessionCard";
@@ -10,6 +11,7 @@ import type { Session } from "../types";
 
 export const SessionListPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   const user = useAuthStore((s) => s.user);
   const sessions = useSessionStore((s) => s.sessions);
@@ -32,6 +34,7 @@ export const SessionListPage = () => {
 
   const onCreated = (session: Session) => {
     addSession(session);
+    navigate(`/sessions/${session.id}`);
   };
 
   return (
@@ -46,7 +49,7 @@ export const SessionListPage = () => {
           <SessionCard
             key={session.id}
             session={session}
-            isParticipant={Boolean(user && session.participant_ids.includes(user.id))}
+            isParticipant={Boolean(user && (session.participant_ids ?? []).includes(user.id))}
             onJoin={onJoin}
           />
         ))}
