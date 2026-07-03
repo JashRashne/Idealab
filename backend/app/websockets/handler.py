@@ -14,7 +14,11 @@ async def websocket_endpoint(
 ) -> None:
     payload = decode_token(token)
     if not payload or payload.get("type") != "access":
-        await websocket.close(code=4001, reason="Unauthorized")
+        await websocket.accept()
+        await websocket.send_json(
+            {"type": WSEventType.ERROR, "payload": {"detail": "Unauthorized"}}
+        )
+        await websocket.close(code=1008)
         return
 
     user_id: str = payload.get("sub")

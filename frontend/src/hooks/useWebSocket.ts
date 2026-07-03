@@ -81,7 +81,7 @@ export const useWebSocket = (sessionId: string, userId: string) => {
           }
         }
 
-        if (parsed.type === "comment_added") {
+        if (parsed.type === "comment_added" || parsed.type === "comment_reaction_updated") {
           window.dispatchEvent(new CustomEvent("idealab:comment-added"));
         }
 

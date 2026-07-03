@@ -16,6 +16,7 @@ class WSEventType(str, Enum):
     IDEA_ADDED = "idea_added"
     VOTE_UPDATED = "vote_updated"
     COMMENT_ADDED = "comment_added"
+    COMMENT_REACTION_UPDATED = "comment_reaction_updated"
     PAD_UPDATED = "pad_updated"
     CURSOR_MOVED = "cursor_moved"
     PONG = "pong"

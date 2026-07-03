@@ -14,6 +14,7 @@ from app.models.ai import (
 from app.models.idea import IdeaResponse
 from app.services.ai_service import AIService
 from app.services.idea_service import IdeaService
+from app.websockets.manager import manager
 
 router = APIRouter()
 _ai_service = AIService()
@@ -79,6 +80,11 @@ async def merge_ideas(
     idea = await service.create_idea(idea_create, current_user["id"])
     # Force status to merged
     idea = await repo.update(idea["id"], {"status": "merged"})
+    await manager.broadcast(
+        idea["session_id"],
+        {"type": "idea_added", "payload": {"idea": idea}},
+        exclude_user_id=current_user["id"],
+    )
     return idea
 
 

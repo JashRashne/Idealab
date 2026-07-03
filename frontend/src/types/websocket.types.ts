@@ -6,6 +6,7 @@ export type WSEventType =
   | "vote_updated"
   | "comment"
   | "comment_added"
+  | "comment_reaction_updated"
   | "user_joined"
   | "user_left"
   | "pad_updated"

@@ -54,8 +54,20 @@ async def react_to_comment(
     body: ReactBody,
     service: CommentService = Depends(get_comment_service),
     current_user: dict = Depends(get_current_user),
+    db=Depends(get_database),
 ):
-    return await service.react_to_comment(comment_id, current_user["id"], body.emoji)
+    comment = await service.react_to_comment(comment_id, current_user["id"], body.emoji)
+    idea = await IdeaRepository(db).get_by_id(comment["idea_id"])
+    if idea:
+        await manager.broadcast(
+            idea["session_id"],
+            {
+                "type": "comment_reaction_updated",
+                "payload": {"comment_id": comment_id, "idea_id": comment["idea_id"]},
+            },
+            exclude_user_id=current_user["id"],
+        )
+    return comment
 
 
 @router.delete("/{comment_id}", status_code=204)

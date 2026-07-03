@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { createComment, getComments } from "../../services/comment.service";
+import { createComment, getComments, reactToComment } from "../../services/comment.service";
 import { updateStatus, voteIdea } from "../../services/idea.service";
 import { useAuthStore } from "../../store/authStore";
 import { useIdeaStore } from "../../store/ideaStore";
@@ -130,7 +130,6 @@ export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
     if (isReadOnly) return;
     const updated = await voteIdea(idea.id);
     updateIdea(updated);
-    sendMessage({ type: "vote", payload: { idea_id: idea.id } });
     setVotePulse(true);
     setTimeout(() => setVotePulse(false), 600);
   };
@@ -141,7 +140,6 @@ export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
     setSendingComment(true);
     try {
       await createComment(idea.id, commentText.trim());
-      sendMessage({ type: "comment", payload: { idea_id: idea.id, content: commentText.trim() } });
       setCommentText("");
       const refreshed = await getComments(idea.id);
       setComments(refreshed);
@@ -303,22 +301,124 @@ export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
               {comments.length === 0 ? (
                 <p className="font-body text-[#ccc]" style={{ fontSize: 12 }}>No comments yet. Be the first.</p>
               ) : (
-                comments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="comment-in"
-                    style={{
-                      padding: "10px 14px",
-                      background: "#f5f5f0",
-                      border: "1px solid #e5e5e0",
-                      borderRadius: 4,
-                    }}
-                  >
-                    <p className="font-body" style={{ fontSize: 13, lineHeight: 1.65, color: "#333" }}>
-                      {comment.content}
-                    </p>
-                  </div>
-                ))
+                comments.map((comment) => {
+                  const reactions = comment.reactions || [];
+                  const groups: Record<string, { count: number; userIds: string[] }> = {};
+                  for (const r of reactions) {
+                    if (!groups[r.emoji]) {
+                      groups[r.emoji] = { count: 0, userIds: [] };
+                    }
+                    groups[r.emoji].count += 1;
+                    groups[r.emoji].userIds.push(r.user_id);
+                  }
+                  const reactionGroups = Object.entries(groups).map(([emoji, data]) => ({
+                    emoji,
+                    count: data.count,
+                    hasReacted: data.userIds.includes(user?.id ?? ""),
+                  }));
+
+                  const handleReactionClick = async (emoji: string) => {
+                    if (isReadOnly) return;
+                    try {
+                      await reactToComment(comment.id, emoji);
+                      const refreshed = await getComments(idea.id);
+                      setComments(refreshed);
+                    } catch (err) {
+                      console.error("Failed to toggle reaction", err);
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={comment.id}
+                      className="comment-in"
+                      style={{
+                        padding: "10px 14px",
+                        background: "#f5f5f0",
+                        border: "1px solid #e5e5e0",
+                        borderRadius: 4,
+                      }}
+                    >
+                      <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+                        <span className="font-body font-bold text-ink/90" style={{ fontSize: 11 }}>
+                          {comment.author?.username || comment.author_id.slice(0, 8)}
+                        </span>
+                        <span className="font-body text-ink/40" style={{ fontSize: 9 }}>
+                          {comment.created_at
+                            ? new Date(comment.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                            : ""}
+                        </span>
+                      </div>
+                      <p className="font-body" style={{ fontSize: 13, lineHeight: 1.65, color: "#333", marginBottom: 8 }}>
+                        {comment.content}
+                      </p>
+                      <div className="flex items-center flex-wrap" style={{ gap: 6 }}>
+                        {reactionGroups.map(({ emoji, count, hasReacted }) => (
+                          <button
+                            key={emoji}
+                            onClick={() => void handleReactionClick(emoji)}
+                            disabled={isReadOnly}
+                            className="flex items-center"
+                            style={{
+                              gap: 4,
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                              fontSize: 10,
+                              background: hasReacted ? "rgba(58,91,255,0.08)" : "#fff",
+                              color: hasReacted ? "#3a5bff" : "#555",
+                              border: `1px solid ${hasReacted ? "rgba(58,91,255,0.25)" : "#ddd"}`,
+                              cursor: isReadOnly ? "not-allowed" : "pointer",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <span>{emoji}</span>
+                            <span className="font-bold">{count}</span>
+                          </button>
+                        ))}
+                        {!isReadOnly && (
+                          <div className="relative group" style={{ display: "inline-block" }}>
+                            <button
+                              className="flex items-center justify-center font-body hover:bg-black/5"
+                              style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: "50%",
+                                border: "1px solid #ddd",
+                                background: "#fff",
+                                fontSize: 10,
+                                color: "#888",
+                                cursor: "pointer",
+                              }}
+                            >
+                              +
+                            </button>
+                            <div
+                              className="absolute bottom-full left-0 mb-1 hidden group-hover:flex items-center bg-white border border-black/10 p-1 rounded-lg shadow-lg"
+                              style={{ gap: 4, zIndex: 10 }}
+                            >
+                              {["👍", "❤️", "💡", "🚀", "🔥"].map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => void handleReactionClick(emoji)}
+                                  className="hover:scale-125 transition-transform duration-100 p-1"
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    fontSize: 13,
+                                    cursor: "pointer",
+                                    lineHeight: 1,
+                                  }}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
 
