@@ -47,3 +47,4 @@ frontend/*.tsbuildinfo
 *.key
 *.crt
 *.p12
+*GUIDE.md
