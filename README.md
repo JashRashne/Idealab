@@ -1,16 +1,13 @@
-# 💡 IdeaLab (Augenblick) — Real-Time Collaborative Ideation & AI Workspace
+# 💡 IdeaLab — Real-Time Collaborative Ideation & AI Workspace
 
 <div align="center">
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.0+-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4+-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![MongoDB Atlas](https://img.shields.io/badge/MongoDB_Atlas-Motor_Async-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
-[![Groq AI](https://img.shields.io/badge/Groq_AI-Llama_3_Inference-F05032?style=for-the-badge)](https://groq.com/)
-[![WebSocket](https://img.shields.io/badge/Realtime-WebSockets-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+[![CI](https://github.com/JashRashne/Idealab/actions/workflows/ci.yml/badge.svg)](https://github.com/JashRashne/Idealab/actions/workflows/ci.yml)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 <p align="center">
   <b>A full-stack, real-time collaborative ideation platform featuring a modular FastAPI backend with layered Route &rarr; Service &rarr; Repository architecture, server-authoritative WebSocket synchronization, asynchronous MongoDB persistence, and Groq LPU-accelerated AI synthesis.</b>
@@ -33,7 +30,8 @@
   - [2. Abstracted Async MongoDB Repository Layer](#2-abstracted-async-mongodb-repository-layer)
   - [3. Dependency Injection & Clean Contracts](#3-dependency-injection--clean-contracts)
 - [Engineering Trade-offs](#-engineering-trade-offs)
-- [Automated Test Suite](#-automated-test-suite)
+- [Scope & Limitations](#-scope--limitations)
+- [Automated Testing & CI](#-automated-testing--ci)
 - [Project Directory Structure](#-project-directory-structure)
 - [Getting Started & Local Setup](#-getting-started--local-setup)
   - [Prerequisites](#prerequisites)
@@ -41,16 +39,19 @@
   - [2. Frontend Setup](#2-frontend-setup)
   - [Environment Variables](#environment-variables)
 - [API Reference (27 Endpoints Across 6 Modules)](#-api-reference-27-endpoints-across-6-modules)
+- [License](#-license)
 
 ---
 
 ## 🌟 Overview
 
-Brainstorming tools frequently suffer from capture isolation—collecting disconnected sticky notes without preserving how ideas branched, or failing to provide teams with structured mechanisms to converge on decisions. **IdeaLab (Augenblick)** resolves this by combining tree-based idea hierarchies, server-authoritative real-time synchronization, and sub-second LLM inference into a cohesive ideation workspace.
+IdeaLab is a real-time collaborative ideation workspace built with FastAPI, React, TypeScript, MongoDB, and WebSockets. It enables cross-functional teams to brainstorm together with structured idea branching, collaborative voting, shared and private scratchpads, server-authoritative real-time synchronization, and AI-assisted workflows powered by Groq.
+
+Brainstorming tools frequently suffer from capture isolation—collecting disconnected sticky notes without preserving how ideas branched, or failing to provide teams with structured mechanisms to converge on decisions. **IdeaLab** resolves this by combining tree-based idea hierarchies, server-authoritative real-time synchronization, and sub-second LLM inference into a cohesive ideation workspace.
 
 - ⚡ **JWT-Authenticated Real-Time Collaboration**: Session-scoped WebSocket broadcasting, live participant presence tracking, and remote cursor tracking.
 - 🌳 **Hierarchical Idea Branching**: Interactive DAG visualizer using React Flow and Dagre layout algorithms to map parent-child idea progressions.
-- 🤖 **Groq-Accelerated AI Synthesis**: Ultra-fast Llama 3 inference for branch ideation, thematic clustering, idea merging, and automated session summaries.
+- 🤖 **Groq-Accelerated AI Synthesis**: Fast Llama 3 inference for branch ideation, thematic clustering, idea merging, and automated session summaries.
 - 📝 **Dual Collaborative Scratchpad**: Autosaved private notes and shared public pads with real-time multi-user synchronization.
 - 🗳️ **Consensus & Export**: Upvoting mechanics, status progression (draft &rarr; shortlisted &rarr; merged &rarr; archived), threaded feedback, and one-click Markdown document export.
 
@@ -69,7 +70,22 @@ The backend is engineered as a clean **Modular Monolith** adhering to strict sep
 1. **Route Layer (`app/api/v1/routes/*`)**: Handles HTTP transport, status codes, query parsing, JWT security dependencies (`get_current_user`), and service instantiation via `Depends()`.
 2. **Service Layer (`app/services/*`)**: Houses pure business logic, transaction workflows, permission validation, and AI prompt engineering (`AIService`, `IdeaService`, `SessionService`, etc.).
 3. **Repository Layer (`app/db/repositories/*`)**: Abstract generic CRUD operations (`BaseRepository[T]`) over MongoDB Motor driver, isolating database implementation details from business services.
-4. **Real-Time WebSocket Engine (`app/websockets/*`)**: Manages room subscriptions, event serialization, and session-scoped fan-out with sender exclusion to eliminate redundant re-renders.
+4. **Real-Time WebSocket Engine (`app/websockets/*`)**: Manages room subscriptions, event serialization, and session-scoped fan-out with sender exclusion to eliminate redundant client re-renders.
+
+```
+Client (React + TypeScript)
+  ├── REST Requests (Mutations / Queries) ──> FastAPI Route Layer
+  │                                                │
+  │                                         Service Layer (Validation & Business Rules)
+  │                                                │
+  │                                         Repository Layer (Motor Async Driver)
+  │                                                │
+  │                                             MongoDB
+  │                                                │
+  │   (Authoritative write confirmed)              │
+  │                                                ▼
+  └── WebSocket Channel <─────────────── Broadcast Notification (Session Room)
+```
 
 ---
 
@@ -101,13 +117,13 @@ IdeaLab enforces a **server-authoritative mutation lifecycle**. Client mutations
 2. **Authoritative Write**: Client A sends `POST /api/v1/ideas` with a Bearer JWT token.
 3. **Validation & Persistence**: Route invokes `IdeaService.create_idea()`, which persists the document into MongoDB via `IdeaRepository`.
 4. **Authoritative Response**: Server returns `201 Created` with the persisted document to Client A (preventing client-invented state).
-5. **Session Fan-Out**: The route triggers `ConnectionManager.broadcast(session_id, ..., exclude_user_id=UserA)`, instantly notifying User B and other connected room collaborators.
+5. **Session Fan-Out**: The route triggers `ConnectionManager.broadcast(session_id, ..., exclude_user_id=UserA)`, notifying User B and other connected room collaborators.
 
 ---
 
 ### 2. AI Expansion, Summarization & Clustering Flow
 
-Leveraging Groq's high-speed LPU inference engine, IdeaLab delivers instant semantic clustering and ideation prompts without blocking collaborative workflows.
+Leveraging Groq's high-speed LPU inference engine, IdeaLab delivers semantic clustering and ideation prompts without blocking collaborative workflows.
 
 <div align="center">
   <img src="https://res.cloudinary.com/dgbgxtsrl/image/upload/v1786878651/idealab_flow1_d12enz.png" alt="AI Expansion & Clustering Flow" width="95%" />
@@ -116,7 +132,7 @@ Leveraging Groq's high-speed LPU inference engine, IdeaLab delivers instant sema
 1. **Trigger**: User A requests AI clustering or branch expansion for an existing idea node.
 2. **Context Assembly**: `POST /api/v1/ai/cluster` fetches the active idea tree and session metadata from MongoDB.
 3. **Prompt & Inference**: `AIService` constructs a structured prompt and dispatches it asynchronously to Groq Cloud API.
-4. **Structured JSON Output**: Groq returns structured clusters, labels, and summaries in sub-seconds.
+4. **Structured JSON Output**: Groq returns structured clusters, labels, and summaries.
 5. **State Update & Fan-Out**: Cluster metadata is persisted to MongoDB, returned to Client A, and broadcast to all room collaborators via `CLUSTER_UPDATED` WebSocket events.
 
 ---
@@ -133,11 +149,11 @@ Pure WebSocket RPC architectures often suffer from split-brain state, complicate
 All database access is cleanly abstracted through an asynchronous repository pattern utilizing Motor (`AsyncIOMotorClient`):
 - `BaseRepository[T]` encapsulates common database operations (`create`, `get_by_id`, `find`, `find_by_query`, `update`, `delete`).
 - Specialized repositories (`UserRepository`, `SessionRepository`, `IdeaRepository`, `CommentRepository`, `PadRepository`) encapsulate domain-specific aggregate pipelines and queries.
-- Guarantees 100% non-blocking async I/O across all concurrent requests.
+- Enables non-blocking asynchronous I/O across concurrent requests using Python's asyncio and Motor.
 
 ### 3. Dependency Injection & Clean Contracts
-- **FastAPI `Depends()`**: Injects database handles, repository instances, domain services, and authenticated user contexts seamlessly.
-- **Decoupled Testability**: Routes and services can be tested with mock repositories and databases without spinning up full infrastructure.
+- **FastAPI `Depends()`**: Injects database handles, repository instances, domain services, and authenticated user contexts cleanly.
+- **Decoupled Testability**: Routes and services can be tested with mock repositories and test databases without spinning up external cloud infrastructure.
 
 ---
 
@@ -148,28 +164,63 @@ All database access is cleanly abstracted through an asynchronous repository pat
 | **Architecture Pattern** | Modular Monolith (FastAPI) | Microservices | Eliminates distributed systems latency and network overhead; provides clear module boundaries while simplifying deployment. |
 | **Mutation Protocol** | Authoritative REST + WS Fan-Out | Pure WebSocket RPC | Guarantees standard HTTP status codes, robust idempotency, and prevents client state divergence. |
 | **Idea Graphing** | React Flow + Dagre Layout | Flat Kanban / Freehand Canvas | Provides automated DAG hierarchy computation, supporting structured parent-child idea branches. |
-| **AI Inference** | Groq Cloud API (LPU Llama 3) | Self-Hosted Ollama / OpenAI API | Delivers sub-second response times necessary for interactive real-time brainstorming sessions. |
+| **AI Inference** | Groq Cloud API (LPU Llama 3) | Self-Hosted Ollama / OpenAI API | Delivers low response latencies necessary for interactive real-time brainstorming sessions. |
 | **Database Engine** | MongoDB Atlas (Async Motor) | Relational SQL (PostgreSQL) | Flexible document model naturally represents hierarchical idea trees, polymorphic AI payloads, and collaborative pad states. |
 
 ---
 
-## 🧪 Automated Test Suite
+## 📐 Scope & Limitations
 
-IdeaLab includes pytest test suites validating core backend flows, authentication barriers, and real-time WebSocket messaging:
+To maintain technical credibility and clear architectural boundaries, the current implementation intentionally incorporates the following constraints:
 
-```bash
+- **Single-Node WebSocket State**: The WebSocket `ConnectionManager` maintains room connections in-memory per server process. For multi-node horizontal scaling, a distributed pub/sub coordinator (such as Redis Pub/Sub) would be required.
+- **External AI Dependency**: AI ideation, clustering, and summarization features depend on network connectivity to the external Groq Cloud API and require a valid `GROQ_API_KEY`.
+- **Scratchpad Concurrency**: The shared scratchpad persists and broadcasts changes using a last-write-wins model rather than a full CRDT (Conflict-free Replicated Data Type) or Operational Transformation (OT) engine.
+- **Database Architecture**: Designed for MongoDB replica set deployments or single container test setups; multi-document cross-collection operations rely on application-level consistency rather than distributed two-phase commit transactions.
+
+---
+
+## 🧪 Automated Testing & CI
+
+IdeaLab includes an automated test suite validating authentication flows, idea management and voting, and real-time WebSocket messaging.
+
+```text
 backend/tests/
-├── conftest.py          # Pytest fixtures, test client setup & test DB mocking
+├── conftest.py          # Pytest fixtures, test client lifecycle & test DB setup/teardown
 ├── test_auth.py         # Registration, password hashing, login & JWT token lifecycle
 ├── test_ideas.py        # Idea CRUD, hierarchical branching, status changes & voting
 └── test_websockets.py   # WebSocket connection, room joining, presence & event broadcast
 ```
 
-Run the test suite:
+### Continuous Integration Workflow
+
+GitHub Actions runs automated checks on every push and pull request targeting `main`:
+
+#### Backend Job
+- Checks out repository and sets up Python 3.11 with `pip` caching.
+- Starts an isolated MongoDB 6 service container on port 27017.
+- Installs backend dependencies from `backend/requirements.txt`.
+- Runs `pytest -v` against the service container without needing external credentials or network APIs.
+
 ```bash
+# Run backend tests locally:
 cd backend
+python3 -m venv .venv
 source .venv/bin/activate
+pip install -r requirements.txt
 pytest -v
+```
+
+#### Frontend Job
+- Checks out repository and sets up Node.js 20 with `npm` caching.
+- Installs dependencies using `npm ci`.
+- Executes `npm run build` (`tsc -b && vite build`) to validate strict TypeScript compilation and production bundling, protecting against Vercel deployment failures.
+
+```bash
+# Run frontend build verification locally:
+cd frontend
+npm ci
+npm run build
 ```
 
 ---
@@ -177,7 +228,11 @@ pytest -v
 ## 📂 Project Directory Structure
 
 ```text
-Augenblick2026/
+Idealab/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                        # GitHub Actions CI workflow (Backend & Frontend)
+├── LICENSE                               # MIT License
 ├── backend/
 │   ├── app/
 │   │   ├── api/
@@ -234,8 +289,8 @@ Augenblick2026/
 ### Prerequisites
 - **Python 3.10+**
 - **Node.js 20+** & **npm**
-- **MongoDB Atlas** connection string
-- **Groq API Key** (from [Groq Console](https://console.groq.com/))
+- **MongoDB** (local instance or MongoDB Atlas cluster URI)
+- **Groq API Key** (optional, for AI features; available from [Groq Console](https://console.groq.com/))
 
 ---
 
@@ -272,7 +327,7 @@ uvicorn app.main:app --reload --port 8000
 cd frontend
 
 # 2. Install dependencies
-npm install
+npm ci
 
 # 3. Configure frontend environment variables
 cp .env.example .env
@@ -289,14 +344,23 @@ npm run dev
 
 #### Backend (`backend/.env`)
 ```ini
+# MongoDB connection URI (Atlas or local)
 MONGODB_URL=mongodb+srv://<user>:<password>@cluster.mongodb.net/idealab?retryWrites=true&w=majority
 DATABASE_NAME=idealab
-JWT_SECRET_KEY=your-super-secret-jwt-key
+
+# JWT Configuration
+JWT_SECRET_KEY=your-super-secret-jwt-key-minimum-32-characters
 JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Groq Cloud AI
 GROQ_API_KEY=gsk_your_groq_api_key
-GROQ_MODEL=llama3-70b-8192
-CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# Application Settings
+ENVIRONMENT=development
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
 
 #### Frontend (`frontend/.env`)
@@ -370,3 +434,9 @@ VITE_WS_URL=ws://localhost:8000/ws
 | Route | Protocol | Description | Auth |
 |---|---|---|:---:|
 | `/ws/{session_id}` | `WebSocket` | Real-time bidirectional room events (cursors, idea sync, presence) | Token query |
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

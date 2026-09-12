@@ -41,7 +41,7 @@ function SendIcon() {
   );
 }
 
-export const IdeaDetailPanel = ({ sessionId, sendMessage }: Props) => {
+export const IdeaDetailPanel = ({ sessionId, sendMessage: _sendMessage }: Props) => {
   const idea       = useIdeaStore((s) => s.selectedIdea);
   const updateIdea = useIdeaStore((s) => s.updateIdea);
   const user       = useAuthStore((s) => s.user);
