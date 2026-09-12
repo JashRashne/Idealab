@@ -46,7 +46,7 @@ The application separates state-mutation transport from event distribution: REST
 - **Hierarchical Idea Branching**: Interactive DAG visualizer using React Flow and Dagre layout algorithms to map parent-child idea progressions.
 - **Server-Authoritative Real-Time Sync**: Session-scoped WebSocket broadcasting with sender exclusion for idea mutations, voting, and status transitions.
 - **Collaborative Scratchpad**: Private personal scratchpads and shared session pads with autosave and live multi-user updates.
-- **Consensus & Progression Engine**: Upvoting mechanics, threaded comments with emoji reactions, and idea status workflows (`draft` &rarr; `shortlisted` &rarr; `merged` &rarr; `archived`).
+- **Voting & Idea Progression**: Upvoting mechanics, threaded comments with emoji reactions, and idea status workflows (`draft` &rarr; `shortlisted` &rarr; `merged` &rarr; `archived`).
 - **AI-Assisted Workflows via Groq**: Asynchronous Llama 3 inference for branch idea expansion, thematic clustering, concept merging, and session executive summaries.
 - **Live Session Presence**: Real-time participant tracking, creator/collaborator roles, and read-only session archiving.
 
@@ -129,7 +129,7 @@ The WebSocket `ConnectionManager` maintains in-memory connection pools keyed by 
 | **Architecture Pattern** | Modular Monolith (FastAPI) | Microservices | Avoids the operational, deployment, and communication overhead of distributed services at current project scale while preserving modular boundaries. |
 | **Mutation Protocol** | Authoritative REST + WS Fan-Out | Pure WebSocket RPC | Provides standard HTTP status codes, centralized server-side validation, and a clear persistence path while using WebSockets solely for peer notifications. |
 | **Idea Graphing** | React Flow + Dagre Layout | Freehand Canvas / Flat Kanban | Provides automated DAG hierarchy computation, supporting structured parent-child idea progression rather than unconstrained coordinates. |
-| **AI Inference** | Groq Cloud API (Llama 3) | Self-Hosted Model (Ollama) | Provides low inference latency for interactive workflows without requiring local GPU infrastructure. |
+| **AI Inference** | Groq Cloud API (Llama 3) | Self-Hosted Model (Ollama) | Avoids local model hosting while keeping AI inference behind a managed external API. |
 | **Database Engine** | MongoDB (Async Motor) | Relational SQL (PostgreSQL) | Document model naturally represents nested idea trees, comment threads, polymorphic AI outputs, and collaborative pad state. |
 
 ---
